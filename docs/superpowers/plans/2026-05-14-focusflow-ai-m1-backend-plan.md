@@ -126,7 +126,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B1 - Scaffold Backend Gradle Project
 
-- [ ] **Do:** Create the `backend` Spring Boot Gradle project with Java 21, the application entrypoint, wrapper, and a smoke test that proves the Spring context can load.
+- [X] **Do:** Create the `backend` Spring Boot Gradle project with Java 21, the application entrypoint, wrapper, and a smoke test that proves the Spring context can load.
 - **Blocked by:** -
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test`
