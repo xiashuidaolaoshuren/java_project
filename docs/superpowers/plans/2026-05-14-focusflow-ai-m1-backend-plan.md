@@ -140,7 +140,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B3 - Add Common Error Response Foundation
 
-- [ ] **Do:** Add standard API error response classes and exception handling for validation, not-found, forbidden, and provider-style failures.
+- [X] **Do:** Add standard API error response classes and exception handling for validation, not-found, forbidden, and provider-style failures.
 - **Blocked by:** B1
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*GlobalExceptionHandler*"`
