@@ -133,7 +133,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B2 - Add Local PostgreSQL Setup
 
-- [ ] **Do:** Add `docker-compose.yml`, `.env.example`, datasource configuration, and a test profile so the backend can connect to local PostgreSQL while tests stay isolated.
+- [X] **Do:** Add `docker-compose.yml`, `.env.example`, datasource configuration, and a test profile so the backend can connect to local PostgreSQL while tests stay isolated.
 - **Blocked by:** B1
 - **Plan mode:** high
 - **Verification:** `docker compose config` and `cd backend; .\gradlew.bat test`
