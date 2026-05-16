@@ -147,7 +147,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B4 - Model Users And Repository
 
-- [ ] **Do:** Create the `User` entity and `UserRepository` with unique account identity and secure password-hash storage fields.
+- [X] **Do:** Create the `User` entity and `UserRepository` with unique account identity and secure password-hash storage fields.
 - **Blocked by:** B2
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*PostgresIntegrationTest"`
