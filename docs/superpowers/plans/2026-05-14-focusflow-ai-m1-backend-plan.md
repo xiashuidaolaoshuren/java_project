@@ -154,7 +154,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B5 - Model Tasks And Repository
 
-- [ ] **Do:** Create `Task`, `TaskPriority`, `TaskStatus`, and repository queries needed for owner-scoped task access.
+- [X] **Do:** Create `Task`, `TaskPriority`, `TaskStatus`, and repository queries needed for owner-scoped task access.
 - **Blocked by:** B4
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*PostgresIntegrationTest"`
