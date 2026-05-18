@@ -161,7 +161,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B6 - Model Daily Plans And Repository
 
-- [ ] **Do:** Create `DailyPlan`, `DailyPlanItem`, and repository queries for owner-scoped plan history and plan lookup.
+- [X] **Do:** Create `DailyPlan`, `DailyPlanItem`, and repository queries for owner-scoped plan history and plan lookup.
 - **Blocked by:** B5
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*PostgresIntegrationTest"`
