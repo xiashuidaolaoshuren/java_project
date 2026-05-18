@@ -1,5 +1,8 @@
 package com.focusflow.integration;
 
+import static com.focusflow.testsupport.PersistenceFixtures.savedPlan;
+import static com.focusflow.testsupport.PersistenceFixtures.savedTask;
+import static com.focusflow.testsupport.PersistenceFixtures.savedUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -10,6 +13,9 @@ import com.focusflow.task.Task;
 import com.focusflow.task.TaskPriority;
 import com.focusflow.task.TaskRepository;
 import com.focusflow.task.TaskStatus;
+import com.focusflow.testsupport.DailyPlanTestBuilder;
+import com.focusflow.testsupport.TaskTestBuilder;
+import com.focusflow.testsupport.UserTestBuilder;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import java.time.Instant;
@@ -18,8 +24,8 @@ import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -63,11 +69,11 @@ class PostgresIntegrationTest {
 
 	@Test
 	void persistsUser_andFindsByEmail() {
-		String suffix = UUID.randomUUID().toString().substring(0, 8);
-		User user = new User();
-		user.setEmail("alice-" + suffix + "@example.com");
-		user.setUsername("alice-" + suffix);
-		user.setPasswordHash("$2a$10$hashedPlaceholderForBcryptLater");
+		User user =
+				UserTestBuilder.user()
+						.withAccountPrefix("alice")
+						.withPasswordHash("$2a$10$hashedPlaceholderForBcryptLater")
+						.build();
 
 		User saved = userRepository.save(user);
 
@@ -87,16 +93,21 @@ class PostgresIntegrationTest {
 		String suffix = UUID.randomUUID().toString().substring(0, 8);
 		String email = "dup-" + suffix + "@example.com";
 
-		User first = new User();
-		first.setEmail(email);
-		first.setUsername("user-a-" + suffix);
-		first.setPasswordHash("$2a$10$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+		User first =
+				UserTestBuilder.user()
+						.withUnique(suffix)
+						.withEmail(email)
+						.withUsername("user-a-" + suffix)
+						.withPasswordHash("$2a$10$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+						.build();
 		userRepository.saveAndFlush(first);
 
-		User second = new User();
-		second.setEmail(email);
-		second.setUsername("user-b-" + suffix);
-		second.setPasswordHash("$2a$10$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+		User second =
+				UserTestBuilder.user()
+						.withEmail(email)
+						.withUsername("user-b-" + suffix)
+						.withPasswordHash("$2a$10$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+						.build();
 
 		assertThatThrownBy(() -> userRepository.saveAndFlush(second))
 				.isInstanceOf(DataIntegrityViolationException.class);
@@ -104,23 +115,23 @@ class PostgresIntegrationTest {
 
 	@Test
 	void persistsTask_andFindsByOwnerAndId() {
-		String suffix = UUID.randomUUID().toString().substring(0, 8);
-		User owner = new User();
-		owner.setEmail("owner-task-" + suffix + "@example.com");
-		owner.setUsername("owner-task-" + suffix);
-		owner.setPasswordHash("$2a$10$ccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
-		User savedOwner = userRepository.save(owner);
+		User savedOwner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withAccountPrefix("owner-task")
+								.withPasswordHash("$2a$10$ccccccccccccccccccccccccccccccccccccccccccccccccccccccc"));
 
-		Task task = new Task();
-		task.setOwner(savedOwner);
-		task.setTitle("Write integration tests");
-		task.setDescription("Cover owner-scoped persistence");
-		task.setPriority(TaskPriority.HIGH);
-		task.setStatus(TaskStatus.OPEN);
-		task.setDueDate(LocalDate.of(2026, 6, 1));
-		task.setEstimatedMinutes(45);
-
-		Task saved = taskRepository.save(task);
+		Task saved =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(savedOwner)
+								.withTitle("Write integration tests")
+								.withDescription("Cover owner-scoped persistence")
+								.withPriority(TaskPriority.HIGH)
+								.withStatus(TaskStatus.OPEN)
+								.withDueDate(LocalDate.of(2026, 6, 1))
+								.withEstimatedMinutes(45));
 
 		assertThat(saved.getId()).isNotNull();
 		assertThat(taskRepository.findByOwner_IdAndId(savedOwner.getId(), saved.getId()))
@@ -138,38 +149,45 @@ class PostgresIntegrationTest {
 	void taskQueriesAreOwnerScoped_forStatusAndDueDate() {
 		String suffix = UUID.randomUUID().toString().substring(0, 8);
 
-		User ownerA = new User();
-		ownerA.setEmail("owner-a-" + suffix + "@example.com");
-		ownerA.setUsername("owner-a-" + suffix);
-		ownerA.setPasswordHash("$2a$10$ddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
-		ownerA = userRepository.save(ownerA);
+		User ownerA =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("owner-a")
+								.withPasswordHash("$2a$10$ddddddddddddddddddddddddddddddddddddddddddddddddddddddd"));
 
-		User ownerB = new User();
-		ownerB.setEmail("owner-b-" + suffix + "@example.com");
-		ownerB.setUsername("owner-b-" + suffix);
-		ownerB.setPasswordHash("$2a$10$eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-		ownerB = userRepository.save(ownerB);
+		User ownerB =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("owner-b")
+								.withPasswordHash("$2a$10$eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"));
 
-		Task taskLater = new Task();
-		taskLater.setOwner(ownerA);
-		taskLater.setTitle("Later");
-		taskLater.setPriority(TaskPriority.MEDIUM);
-		taskLater.setStatus(TaskStatus.OPEN);
-		taskLater.setDueDate(LocalDate.of(2026, 6, 10));
+		Task taskLater =
+				TaskTestBuilder.task(ownerA)
+						.withTitle("Later")
+						.withPriority(TaskPriority.MEDIUM)
+						.withStatus(TaskStatus.OPEN)
+						.withDueDate(LocalDate.of(2026, 6, 10))
+						.build();
 
-		Task taskSooner = new Task();
-		taskSooner.setOwner(ownerA);
-		taskSooner.setTitle("Sooner");
-		taskSooner.setPriority(TaskPriority.LOW);
-		taskSooner.setStatus(TaskStatus.OPEN);
-		taskSooner.setDueDate(LocalDate.of(2026, 6, 5));
+		Task taskSooner =
+				TaskTestBuilder.task(ownerA)
+						.withTitle("Sooner")
+						.withPriority(TaskPriority.LOW)
+						.withStatus(TaskStatus.OPEN)
+						.withDueDate(LocalDate.of(2026, 6, 5))
+						.build();
 
-		Task taskB = new Task();
-		taskB.setOwner(ownerB);
-		taskB.setTitle("Other user");
-		taskB.setPriority(TaskPriority.HIGH);
-		taskB.setStatus(TaskStatus.OPEN);
-		taskB.setDueDate(LocalDate.of(2026, 6, 1));
+		Task taskB =
+				TaskTestBuilder.task(ownerB)
+						.withTitle("Other user")
+						.withPriority(TaskPriority.HIGH)
+						.withStatus(TaskStatus.OPEN)
+						.withDueDate(LocalDate.of(2026, 6, 1))
+						.build();
 
 		taskLater = taskRepository.save(taskLater);
 		taskRepository.save(taskSooner);
@@ -191,26 +209,27 @@ class PostgresIntegrationTest {
 	@Test
 	void persistsMultipleDailyPlans_sameOwnerAndDate_orderedByCreatedAtDesc() {
 		String suffix = UUID.randomUUID().toString().substring(0, 8);
-		User owner = new User();
-		owner.setEmail("plan-owner-" + suffix + "@example.com");
-		owner.setUsername("plan-owner-" + suffix);
-		owner.setPasswordHash("$2a$10$fffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-		owner = userRepository.save(owner);
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("plan-owner")
+								.withPasswordHash("$2a$10$fffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
 
 		LocalDate planDate = LocalDate.of(2026, 8, 15);
 
-		DailyPlan earlier = new DailyPlan();
-		earlier.setOwner(owner);
-		earlier.setPlanDate(planDate);
-		earlier.setCreatedAt(Instant.parse("2026-08-15T08:00:00Z"));
+		DailyPlan savedEarlier =
+				dailyPlanRepository.save(
+						DailyPlanTestBuilder.plan(owner, planDate)
+								.withCreatedAt(Instant.parse("2026-08-15T08:00:00Z"))
+								.build());
 
-		DailyPlan later = new DailyPlan();
-		later.setOwner(owner);
-		later.setPlanDate(planDate);
-		later.setCreatedAt(Instant.parse("2026-08-15T14:00:00Z"));
-
-		DailyPlan savedEarlier = dailyPlanRepository.save(earlier);
-		DailyPlan savedLater = dailyPlanRepository.save(later);
+		DailyPlan savedLater =
+				dailyPlanRepository.save(
+						DailyPlanTestBuilder.plan(owner, planDate)
+								.withCreatedAt(Instant.parse("2026-08-15T14:00:00Z"))
+								.build());
 		dailyPlanRepository.flush();
 
 		assertThat(dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(owner.getId(), planDate))
@@ -231,50 +250,45 @@ class PostgresIntegrationTest {
 	void dailyPlanQueriesAreOwnerScoped_itemsPreserveTaskFkAndOrder() {
 		String suffix = UUID.randomUUID().toString().substring(0, 8);
 
-		User ownerA = new User();
-		ownerA.setEmail("plan-a-" + suffix + "@example.com");
-		ownerA.setUsername("plan-a-" + suffix);
-		ownerA.setPasswordHash("$2a$10$1111111111111111111111111111111111111111111111111111111");
-		ownerA = userRepository.save(ownerA);
+		User ownerA =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("plan-a")
+								.withPasswordHash("$2a$10$1111111111111111111111111111111111111111111111111111111"));
 
-		User ownerB = new User();
-		ownerB.setEmail("plan-b-" + suffix + "@example.com");
-		ownerB.setUsername("plan-b-" + suffix);
-		ownerB.setPasswordHash("$2a$10$2222222222222222222222222222222222222222222222222222222");
-		ownerB = userRepository.save(ownerB);
+		User ownerB =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("plan-b")
+								.withPasswordHash("$2a$10$2222222222222222222222222222222222222222222222222222222"));
 
-		Task taskFirst = new Task();
-		taskFirst.setOwner(ownerA);
-		taskFirst.setTitle("First task");
-		taskFirst.setPriority(TaskPriority.MEDIUM);
-		taskFirst.setStatus(TaskStatus.OPEN);
+		final Task savedFirst =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(ownerA)
+								.withTitle("First task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
 
-		Task taskSecond = new Task();
-		taskSecond.setOwner(ownerA);
-		taskSecond.setTitle("Second task");
-		taskSecond.setPriority(TaskPriority.MEDIUM);
-		taskSecond.setStatus(TaskStatus.OPEN);
+		final Task savedSecond =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(ownerA)
+								.withTitle("Second task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
 
-		final Task savedFirst = taskRepository.save(taskFirst);
-		final Task savedSecond = taskRepository.save(taskSecond);
-
-		DailyPlan plan = new DailyPlan();
-		plan.setOwner(ownerA);
-		plan.setPlanDate(LocalDate.of(2026, 9, 20));
-		plan.setCreatedAt(Instant.parse("2026-09-20T11:00:00Z"));
-
-		DailyPlanItem itemPos0 = new DailyPlanItem();
-		itemPos0.setTask(savedSecond);
-		itemPos0.setPosition(0);
-
-		DailyPlanItem itemPos1 = new DailyPlanItem();
-		itemPos1.setTask(savedFirst);
-		itemPos1.setPosition(1);
-
-		plan.addItem(itemPos0);
-		plan.addItem(itemPos1);
-
-		plan = dailyPlanRepository.save(plan);
+		DailyPlan plan =
+				savedPlan(
+						dailyPlanRepository,
+						DailyPlanTestBuilder.plan(ownerA, LocalDate.of(2026, 9, 20))
+								.withCreatedAt(Instant.parse("2026-09-20T11:00:00Z"))
+								.addItem(savedSecond, 0)
+								.addItem(savedFirst, 1));
 		dailyPlanRepository.flush();
 
 		assertThat(dailyPlanRepository.findByOwner_IdAndId(ownerB.getId(), plan.getId())).isEmpty();

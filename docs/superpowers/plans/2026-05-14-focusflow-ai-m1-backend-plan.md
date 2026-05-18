@@ -168,7 +168,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B7 - Add Backend Test Support Utilities
 
-- [ ] **Do:** Add small test builders, security helpers, and reusable fixtures for users, tasks, and plans so later tests remain readable.
+- [X] **Do:** Add small test builders, security helpers, and reusable fixtures for users, tasks, and plans so later tests remain readable.
 - **Blocked by:** B4, B5, B6
 - **Plan mode:** skip
 - **Verification:** `cd backend; .\gradlew.bat test`
