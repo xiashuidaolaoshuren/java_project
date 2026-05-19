@@ -182,7 +182,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B9 - Implement Session Login And Logout
 
-- [ ] **Do:** Configure Spring Security session login/logout behavior and verify successful and failed login paths.
+- [X] **Do:** Configure Spring Security session login/logout behavior and verify successful and failed login paths.
 - **Blocked by:** B8
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*AuthControllerTest"`

@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -74,6 +75,18 @@ public class GlobalExceptionHandler {
 						ex.getMessage(),
 						request.getRequestURI());
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+	}
+
+	@ExceptionHandler(BadCredentialsException.class)
+	public ResponseEntity<ApiErrorResponse> handleBadCredentials(
+			BadCredentialsException ex, HttpServletRequest request) {
+		ApiErrorResponse body =
+				ApiErrorResponse.withoutDetails(
+						HttpStatus.UNAUTHORIZED.value(),
+						HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+						"Invalid credentials",
+						request.getRequestURI());
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
 	}
 
 	@ExceptionHandler(AiProviderException.class)

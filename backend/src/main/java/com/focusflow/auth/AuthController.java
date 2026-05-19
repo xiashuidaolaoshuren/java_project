@@ -1,5 +1,6 @@
 package com.focusflow.auth;
 
+import com.focusflow.auth.dto.LoginRequest;
 import com.focusflow.auth.dto.RegisterRequest;
 import com.focusflow.auth.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -24,5 +25,10 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public UserResponse register(@Valid @RequestBody RegisterRequest request) {
 		return authService.register(request);
+	}
+
+	@PostMapping("/login")
+	public UserResponse login(@Valid @RequestBody LoginRequest request) {
+		return authService.login(request);
 	}
 }

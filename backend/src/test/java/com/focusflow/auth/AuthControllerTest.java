@@ -9,10 +9,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.focusflow.auth.dto.LoginRequest;
 import com.focusflow.auth.dto.RegisterRequest;
 import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.GlobalExceptionHandler;
+import com.focusflow.security.FocusFlowUserDetailsService;
 import com.focusflow.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = AuthController.class)
@@ -31,6 +35,83 @@ class AuthControllerTest {
 
 	@MockBean
 	private AuthService authService;
+
+	@MockBean
+	private FocusFlowUserDetailsService userDetailsService;
+
+	@Test
+	void login_withValidCredentials_returns200AndUserResponse() throws Exception {
+		when(authService.login(any(LoginRequest.class)))
+				.thenReturn(new UserResponse(1L, "alice@example.com", "alice"));
+
+		mockMvc.perform(
+						post("/api/auth/login")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "username": "alice",
+										  "password": "password123"
+										}
+										"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(1))
+				.andExpect(jsonPath("$.email").value("alice@example.com"))
+				.andExpect(jsonPath("$.username").value("alice"));
+	}
+
+	@Test
+	void login_withWrongPassword_returns401() throws Exception {
+		when(authService.login(any(LoginRequest.class)))
+				.thenThrow(new BadCredentialsException("Bad credentials"));
+
+		mockMvc.perform(
+						post("/api/auth/login")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "username": "alice",
+										  "password": "wrong"
+										}
+										"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.status").value(401))
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.message").value("Invalid credentials"))
+				.andExpect(jsonPath("$.path").value("/api/auth/login"));
+	}
+
+	@Test
+	void login_withUnknownUsername_returns401() throws Exception {
+		when(authService.login(any(LoginRequest.class)))
+				.thenThrow(new BadCredentialsException("Bad credentials"));
+
+		mockMvc.perform(
+						post("/api/auth/login")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "username": "nobody",
+										  "password": "password123"
+										}
+										"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.status").value(401))
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.message").value("Invalid credentials"))
+				.andExpect(jsonPath("$.path").value("/api/auth/login"));
+	}
+
+	@Test
+	@WithMockUser
+	void logout_whenAuthenticated_returns204() throws Exception {
+		mockMvc.perform(post("/api/auth/logout").with(csrf())).andExpect(status().isNoContent());
+	}
 
 	@Test
 	void register_withValidData_returns201AndUserResponse() throws Exception {
