@@ -1,6 +1,7 @@
 package com.focusflow.common.error;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,10 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = GlobalExceptionHandlerTestController.class)
 @Import(GlobalExceptionHandler.class)
+@WithMockUser
 class GlobalExceptionHandlerTest {
 
 	@Autowired
@@ -56,6 +59,7 @@ class GlobalExceptionHandlerTest {
 	@Test
 	void validation_returns400_withDetails() throws Exception {
 		mockMvc.perform(post("/__test/errors/validation")
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isBadRequest())
