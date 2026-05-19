@@ -3,4 +3,4 @@ backend/bin/
 backend/.gradle/
 .env
 
-cursor/rules/
+.cursor/rules/
