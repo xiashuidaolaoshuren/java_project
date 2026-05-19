@@ -175,7 +175,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B8 - Implement User Registration
 
-- [ ] **Do:** Add registration DTOs, service behavior, endpoint, validation, uniqueness checks, and password hashing.
+- [X] **Do:** Add registration DTOs, service behavior, endpoint, validation, uniqueness checks, and password hashing.
 - **Blocked by:** B3, B4, B7
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*AuthControllerTest"`
