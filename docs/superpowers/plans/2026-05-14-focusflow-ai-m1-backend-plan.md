@@ -189,7 +189,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B10 - Implement Current User Endpoint
 
-- [ ] **Do:** Add current-user resolution and `GET /api/auth/me` so clients can derive authentication state from the backend.
+- [X] **Do:** Add current-user resolution and `GET /api/auth/me` so clients can derive authentication state from the backend.
 - **Blocked by:** B9
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*AuthControllerTest"`

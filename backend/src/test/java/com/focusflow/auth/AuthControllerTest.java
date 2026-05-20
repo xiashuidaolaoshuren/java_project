@@ -5,6 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -111,6 +112,26 @@ class AuthControllerTest {
 	@WithMockUser
 	void logout_whenAuthenticated_returns204() throws Exception {
 		mockMvc.perform(post("/api/auth/logout").with(csrf())).andExpect(status().isNoContent());
+	}
+
+	@Test
+	void me_whenUnauthenticated_returns403() throws Exception {
+		mockMvc.perform(get("/api/auth/me")).andExpect(status().isForbidden());
+
+		verify(authService, never()).getCurrentUser();
+	}
+
+	@Test
+	@WithMockUser
+	void me_whenAuthenticated_returns200AndUserResponse() throws Exception {
+		when(authService.getCurrentUser())
+				.thenReturn(new UserResponse(1L, "alice@example.com", "alice"));
+
+		mockMvc.perform(get("/api/auth/me"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(1))
+				.andExpect(jsonPath("$.email").value("alice@example.com"))
+				.andExpect(jsonPath("$.username").value("alice"));
 	}
 
 	@Test

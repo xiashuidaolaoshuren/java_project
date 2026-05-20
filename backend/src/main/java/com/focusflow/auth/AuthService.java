@@ -4,6 +4,7 @@ import com.focusflow.auth.dto.LoginRequest;
 import com.focusflow.auth.dto.RegisterRequest;
 import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.ConflictException;
+import com.focusflow.security.CurrentUser;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,14 +21,17 @@ public class AuthService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final AuthenticationManager authenticationManager;
+	private final CurrentUser currentUser;
 
 	public AuthService(
 			UserRepository userRepository,
 			PasswordEncoder passwordEncoder,
-			AuthenticationManager authenticationManager) {
+			AuthenticationManager authenticationManager,
+			CurrentUser currentUser) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.authenticationManager = authenticationManager;
+		this.currentUser = currentUser;
 	}
 
 	@Transactional
@@ -59,5 +63,9 @@ public class AuthService {
 						.findByUsername(request.username())
 						.orElseThrow();
 		return new UserResponse(user.getId(), user.getEmail(), user.getUsername());
+	}
+
+	public UserResponse getCurrentUser() {
+		return currentUser.getCurrentUser();
 	}
 }
