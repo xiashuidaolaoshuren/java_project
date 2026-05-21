@@ -203,7 +203,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B12 - Implement Task Read, Update, And Delete
 
-- [ ] **Do:** Add owner-scoped task detail, update, and delete behavior, including 404/403-style safeguards where appropriate.
+- [X] **Do:** Add owner-scoped task detail, update, and delete behavior, including 404/403-style safeguards where appropriate.
 - **Blocked by:** B11
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*Task*"`

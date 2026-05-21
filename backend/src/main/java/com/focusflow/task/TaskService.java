@@ -5,6 +5,7 @@ import com.focusflow.common.error.NotFoundException;
 import com.focusflow.security.CurrentUser;
 import com.focusflow.task.dto.CreateTaskRequest;
 import com.focusflow.task.dto.TaskResponse;
+import com.focusflow.task.dto.UpdateTaskRequest;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import java.util.List;
@@ -51,11 +52,41 @@ public class TaskService {
 				.toList();
 	}
 
+	public TaskResponse getForCurrentUser(Long taskId) {
+		return toResponse(loadTaskForCurrentUser(taskId));
+	}
+
+	@Transactional
+	public TaskResponse updateForCurrentUser(Long taskId, UpdateTaskRequest request) {
+		Task task = loadTaskForCurrentUser(taskId);
+		task.setTitle(request.title());
+		task.setDescription(request.description());
+		task.setPriority(
+				request.priority() != null ? request.priority() : TaskPriority.MEDIUM);
+		task.setStatus(request.status() != null ? request.status() : TaskStatus.OPEN);
+		task.setDueDate(request.dueDate());
+		task.setEstimatedMinutes(request.estimatedMinutes());
+		return toResponse(taskRepository.save(task));
+	}
+
+	@Transactional
+	public void deleteForCurrentUser(Long taskId) {
+		Task task = loadTaskForCurrentUser(taskId);
+		taskRepository.delete(task);
+	}
+
 	private User loadCurrentUserEntity() {
 		UserResponse current = currentUser.getCurrentUser();
 		return userRepository
 				.findById(current.id())
 				.orElseThrow(() -> new NotFoundException("user not found"));
+	}
+
+	private Task loadTaskForCurrentUser(Long taskId) {
+		Long ownerId = currentUser.getCurrentUser().id();
+		return taskRepository
+				.findByOwner_IdAndId(ownerId, taskId)
+				.orElseThrow(() -> new NotFoundException("task not found"));
 	}
 
 	private TaskResponse toResponse(Task task) {
