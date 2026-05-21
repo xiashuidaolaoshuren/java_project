@@ -210,7 +210,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B13 - Define Daily Plan AI Boundary
 
-- [ ] **Do:** Add `DailyPlanAiClient`, plan-generation request/response DTOs, and internal data objects needed to mock AI generation in service tests.
+- [X] **Do:** Add `DailyPlanAiClient`, plan-generation request/response DTOs, and internal data objects needed to mock AI generation in service tests.
 - **Blocked by:** B12
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanServiceTest"`
