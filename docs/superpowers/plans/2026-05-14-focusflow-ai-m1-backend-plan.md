@@ -196,7 +196,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B11 - Implement Task Create And List
 
-- [ ] **Do:** Add task DTOs, service methods, and endpoints for creating tasks and listing only the authenticated user's tasks.
+- [X] **Do:** Add task DTOs, service methods, and endpoints for creating tasks and listing only the authenticated user's tasks.
 - **Blocked by:** B10
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*Task*"`
