@@ -217,7 +217,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B14 - Implement Daily Plan Generation With Mockable AI
 
-- [ ] **Do:** Implement daily plan generation service and endpoint using active user tasks and the AI boundary, then persist validated plan output.
+- [X] **Do:** Implement daily plan generation service and endpoint using active user tasks and the AI boundary, then persist validated plan output.
 - **Blocked by:** B13
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlan*"`
