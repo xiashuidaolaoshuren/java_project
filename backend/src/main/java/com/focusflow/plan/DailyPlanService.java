@@ -73,6 +73,25 @@ public class DailyPlanService {
 		return toPlanResponse(dailyPlanRepository.save(plan));
 	}
 
+	public List<DailyPlanResponse> listForCurrentUser(LocalDate planDate) {
+		Long ownerId = currentUser.getCurrentUser().id();
+		List<DailyPlan> plans =
+				planDate != null
+						? dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(
+								ownerId, planDate)
+						: dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(ownerId);
+		return plans.stream().map(this::toPlanResponse).toList();
+	}
+
+	public DailyPlanResponse getForCurrentUser(Long planId) {
+		Long ownerId = currentUser.getCurrentUser().id();
+		DailyPlan plan =
+				dailyPlanRepository
+						.findByOwner_IdAndId(ownerId, planId)
+						.orElseThrow(() -> new NotFoundException("daily plan not found"));
+		return toPlanResponse(plan);
+	}
+
 	private void validateAiItems(List<AiPlanItem> aiItems, Map<Long, Task> taskById) {
 		for (AiPlanItem aiItem : aiItems) {
 			if (!taskById.containsKey(aiItem.taskId())) {

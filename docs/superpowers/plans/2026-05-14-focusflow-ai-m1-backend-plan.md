@@ -224,7 +224,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B15 - Implement Saved Plan Read Endpoints
 
-- [ ] **Do:** Add owner-scoped saved plan list and detail endpoints for plan history.
+- [X] **Do:** Add owner-scoped saved plan list and detail endpoints for plan history.
 - **Blocked by:** B14
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanControllerTest"`

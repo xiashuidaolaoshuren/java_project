@@ -3,6 +3,7 @@ package com.focusflow.plan;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.auth.dto.UserResponse;
+import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
@@ -21,6 +23,7 @@ import com.focusflow.task.TaskRepository;
 import com.focusflow.task.TaskStatus;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -136,5 +139,72 @@ class DailyPlanServiceTest {
 
 		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
 				.isInstanceOf(AiProviderException.class);
+	}
+
+	@Test
+	void listForCurrentUser_whenNoPlanDate_usesAllHistoryQueryAndReturnsMappedResponses() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+
+		DailyPlan plan = new DailyPlan();
+		plan.setPlanDate(LocalDate.of(2026, 6, 1));
+		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
+		when(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(42L))
+				.thenReturn(List.of(plan));
+
+		List<DailyPlanResponse> responses = dailyPlanService.listForCurrentUser(null);
+
+		verify(dailyPlanRepository).findAllByOwner_IdOrderByCreatedAtDesc(eq(42L));
+		assertThat(responses).singleElement().satisfies(r -> {
+			assertThat(r.planDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+			assertThat(r.items()).isEmpty();
+		});
+	}
+
+	@Test
+	void listForCurrentUser_whenPlanDateProvided_usesDateFilterQuery() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		DailyPlan plan = new DailyPlan();
+		plan.setPlanDate(planDate);
+		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
+		when(dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(42L, planDate))
+				.thenReturn(List.of(plan));
+
+		List<DailyPlanResponse> responses = dailyPlanService.listForCurrentUser(planDate);
+
+		verify(dailyPlanRepository)
+				.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(eq(42L), eq(planDate));
+		assertThat(responses).singleElement().satisfies(r -> assertThat(r.planDate()).isEqualTo(planDate));
+	}
+
+	@Test
+	void getForCurrentUser_whenOwnedPlanExists_returnsMappedResponse() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+
+		DailyPlan plan = new DailyPlan();
+		plan.setPlanDate(LocalDate.of(2026, 6, 1));
+		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
+		when(dailyPlanRepository.findByOwner_IdAndId(42L, 7L)).thenReturn(Optional.of(plan));
+
+		DailyPlanResponse response = dailyPlanService.getForCurrentUser(7L);
+
+		verify(dailyPlanRepository).findByOwner_IdAndId(eq(42L), eq(7L));
+		assertThat(response.planDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+		assertThat(response.items()).isEmpty();
+	}
+
+	@Test
+	void getForCurrentUser_whenMissing_throwsNotFoundException() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+		when(dailyPlanRepository.findByOwner_IdAndId(42L, 99L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> dailyPlanService.getForCurrentUser(99L))
+				.isInstanceOf(NotFoundException.class)
+				.hasMessage("daily plan not found");
 	}
 }
