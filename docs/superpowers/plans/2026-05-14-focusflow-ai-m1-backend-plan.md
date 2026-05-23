@@ -2,18 +2,18 @@
 
 **Spec:** `docs/superpowers/specs/2026-05-14-focusflow-ai-design.md`  
 **Created:** 2026-05-15  
-**Milestone scope:** Backend API, database, session security, OpenAI adapter, and backend tests.
+**Milestone scope:** Backend API, database, session security, OpenAI-compatible AI adapter, and backend tests.
 
 ## Summary
 
-Ship a tested Spring Boot backend that supports user registration, session login/logout, current-user lookup, authenticated task CRUD, saved daily plans, and daily plan generation through a mockable AI client with a real OpenAI adapter. This milestone is the main Java learning milestone. It should finish with a backend that can be exercised through HTTP clients before the React app exists.
+Ship a tested Spring Boot backend that supports user registration, session login/logout, current-user lookup, authenticated task CRUD, saved daily plans, and daily plan generation through a mockable AI client with a real OpenAI-compatible adapter (OpenAI by default; alternate providers such as DeepSeek via configuration). This milestone is the main Java learning milestone. It should finish with a backend that can be exercised through HTTP clients before the React app exists.
 
 Out of scope: React UI, browser integration, production deployment, RAG, embeddings, agents, calendar integration, notifications, and team features.
 
 ## Discovery Notes
 
 - Reuse: The repository currently contains the approved design spec and planning docs only. There is no existing app code to preserve.
-- Constraints: Use Java 21, Spring Boot, Gradle, PostgreSQL, Spring Data JPA/Hibernate, Spring Security sessions, OpenAI API, JUnit 5, Mockito, Spring MVC tests, and Testcontainers.
+- Constraints: Use Java 21, Spring Boot, Gradle, PostgreSQL, Spring Data JPA/Hibernate, Spring Security sessions, an OpenAI-compatible chat-completions API (OpenAI by default), JUnit 5, Mockito, Spring MVC tests, and Testcontainers.
 - Patterns to follow: Backend packages stay focused by responsibility: `auth`, `user`, `security`, `task`, `plan`, `ai`, and `common/error`.
 - Anti-goals: Do not introduce JWT, a vector database, frontend-specific work, or broad infrastructure beyond local PostgreSQL and backend configuration.
 
@@ -24,7 +24,7 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | Path | Create/Modify | Responsibility | Public Surface |
 |------|----------------|----------------|----------------|
 | `.gitignore` | create | Ignore Java, Node, IDE, build, environment, and local generated artifacts. | Repository hygiene. |
-| `.env.example` | create | Document backend environment variables without secrets. | Example values for database and `OPENAI_API_KEY`. |
+| `.env.example` | create | Document backend environment variables without secrets. | Example values for database, `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL`. |
 | `docker-compose.yml` | create | Run local PostgreSQL for backend development. | `postgres` service. |
 | `README.md` | create/modify | Explain backend-first setup and milestone commands. | Developer documentation. |
 
@@ -36,7 +36,7 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/build.gradle` | create | Configure Java 21, Spring Boot, dependencies, and test tooling. | `test`, `bootRun`, and build tasks. |
 | `backend/gradlew`, `backend/gradlew.bat`, `backend/gradle/wrapper/*` | create | Provide reproducible Gradle execution. | Gradle wrapper commands. |
 | `backend/src/main/java/com/focusflow/FocusFlowApplication.java` | create | Start the Spring Boot application. | `main` entrypoint. |
-| `backend/src/main/resources/application.yml` | create | Configure datasource, JPA, sessions, CORS/CSRF related properties, and OpenAI properties. | Spring configuration keys. |
+| `backend/src/main/resources/application.yml` | create | Configure datasource, JPA, sessions, CORS/CSRF related properties, and OpenAI-compatible provider properties. | Spring configuration keys. |
 | `backend/src/test/resources/application-test.yml` | create | Configure tests separately from local development. | Spring test profile. |
 
 ### Common API Errors
@@ -91,11 +91,13 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/src/main/java/com/focusflow/ai/AiDailyPlanRequest.java` | create/modify | Bundle tasks and available focus time for AI generation. | Internal AI request. |
 | `backend/src/main/java/com/focusflow/ai/AiDailyPlanResponse.java` | create/modify | Bundle ordered AI plan items returned by provider. | Internal AI response. |
 | `backend/src/main/java/com/focusflow/ai/DailyPlanPromptBuilder.java` | create/modify | Build prompts from tasks and user planning input. | Prompt builder method. |
-| `backend/src/main/java/com/focusflow/ai/OpenAiProperties.java` | create/modify | Bind OpenAI configuration. | Spring configuration properties. |
-| `backend/src/main/java/com/focusflow/ai/OpenAiDailyPlanClient.java` | create | Call OpenAI and map structured output into internal data. | OpenAI adapter. |
+| `backend/src/main/java/com/focusflow/ai/OpenAiProperties.java` | create/modify | Bind provider API key, model, and base URL (default OpenAI). | Spring configuration properties. |
+| `backend/src/main/java/com/focusflow/ai/OpenAiClientConfiguration.java` | create/modify | Wire `RestClient` from configured base URL and register the production AI client bean. | Spring configuration beans. |
+| `backend/src/main/java/com/focusflow/ai/OpenAiDailyPlanClient.java` | create/modify | Call an OpenAI-compatible chat-completions endpoint and map structured output into internal data. | OpenAI-compatible adapter. |
 | `backend/src/main/java/com/focusflow/ai/AiProviderException.java` | create/modify | Represent provider failures safely. | Service-layer exception. |
 | `backend/src/test/java/com/focusflow/ai/DailyPlanPromptBuilderTest.java` | create/modify | Verify deterministic prompt output. | JUnit tests. |
-| `backend/src/test/java/com/focusflow/ai/OpenAiPropertiesTest.java` | create/modify | Verify OpenAI config binding. | JUnit tests. |
+| `backend/src/test/java/com/focusflow/ai/OpenAiPropertiesTest.java` | create/modify | Verify provider config binding (API key, model, base URL). | JUnit tests. |
+| `backend/src/test/java/com/focusflow/ai/OpenAiDailyPlanClientTest.java` | create/modify | Verify adapter request contract, response mapping, provider errors, and structured-output validation. | JUnit tests. |
 
 ### Backend Tests
 
@@ -120,7 +122,7 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/src/main/java/com/focusflow/user/User.java` | User identity anchors ownership and authentication. | high - confirm fields, uniqueness, and password storage. |
 | `backend/src/main/java/com/focusflow/task/Task.java` | Task shape drives CRUD, AI prompt input, and frontend forms. | high - confirm fields, enum persistence, nullability, and ownership. |
 | `backend/src/main/java/com/focusflow/plan/DailyPlan.java` and `DailyPlanItem.java` | Persistence design crosses AI output, user ownership, and history views. | high - confirm relationships and cascade behavior. |
-| `backend/src/main/java/com/focusflow/ai/OpenAiDailyPlanClient.java` | External API failures and spending must be isolated. | high - confirm client choice, structured output approach, and test strategy. |
+| `backend/src/main/java/com/focusflow/ai/OpenAiDailyPlanClient.java` | External API failures and spending must be isolated; provider choice must stay configuration-driven. | high - confirm OpenAI-compatible client choice, base URL/model config, structured output approach, and test strategy. |
 | `docker-compose.yml` | Local database settings affect every backend task. | medium - confirm ports, credentials, and volume behavior. |
 
 ## Workflow For Implementers
@@ -263,13 +265,13 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanPromptBuilder*"`
 
-### B17 - Implement OpenAI Adapter
+### B17 - Implement OpenAI-Compatible Adapter
 
-- [ ] **Do:** Implement `OpenAiDailyPlanClient` behind the AI interface, including provider error handling and structured output validation.
+- [X] **Do:** Implement `OpenAiDailyPlanClient` behind the AI interface as an OpenAI-compatible adapter: configurable `baseUrl` and `model` (OpenAI by default; alternate OpenAI-spec providers via env), provider error handling, and structured output validation.
 - **TDD suitable:** yes
 - **Blocked by:** B16
 - **Plan mode:** high
-- **Verification:** `cd backend; .\gradlew.bat test` and one manual local generation check with `OPENAI_API_KEY`
+- **Verification:** `cd backend; .\gradlew.bat test` and manual local generation checks with default OpenAI config (`OPENAI_API_KEY`) plus one OpenAI-compatible alternate provider config (`OPENAI_BASE_URL`, `OPENAI_MODEL`)
 
 ### B18 - Backend Full Pass And Documentation Notes
 
@@ -277,7 +279,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 - **TDD suitable:** no - Verification/documentation pass, not a new behavior implementation slice.
 - **Blocked by:** B17
 - **Plan mode:** skip
-- **Verification:** `cd backend; .\gradlew.bat test` and README backend setup works from a clean checkout
+- **Verification:** `cd backend; .\gradlew.bat test` and README backend setup works from a clean checkout, including default OpenAI and OpenAI-compatible provider env vars (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`)
 
 ## TDD Note For Agent Mode
 
@@ -290,3 +292,4 @@ Per subtask, obey **TDD suitable**: **`yes`** means strict **test-driven-develop
 | 2026-05-15 | Created backend milestone plan from the original monolithic FocusFlow AI plan. |
 | 2026-05-23 | Added `TDD suitable` classification to all backend subtasks (B1-B18). |
 | 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, separate `TDD suitable reason`, living file map/discovery updates, B16 verification breadth. |
+| 2026-05-23 | Updated B17 and AI file map for OpenAI-compatible provider support (`OPENAI_BASE_URL`, configurable model/base URL, adapter/config tests). |
