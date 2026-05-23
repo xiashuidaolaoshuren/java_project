@@ -12,9 +12,10 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 
 ## Discovery Notes
 
-- Reuse: The repository currently has planning docs only. The frontend will be new code.
+- Reuse: Milestone 1 backend API is implemented and is the contract source for frontend types and API calls.
 - Constraints: Follow the approved frontend stack: React, Vite, TypeScript, shadcn/ui, Tailwind CSS, React Router, and TanStack Query.
-- Patterns to establish: Keep API access in `src/lib/api.ts`, server state in TanStack Query hooks, route pages in `src/routes`, and feature-specific UI in `src/features`.
+- Patterns to follow: Keep API access in `src/lib/api.ts`, server state in TanStack Query hooks, route pages in `src/routes`, and feature-specific UI in `src/features`.
+- Test tooling: Introduce Vitest and React Testing Library during **F4** so **`TDD suitable: yes`** subtasks can test hooks, API helpers, and route guards; until then rely on build checks plus manual browser verification.
 - Anti-goals: Do not store auth tokens in local storage. Do not introduce Redux or SSR. Do not let the frontend duplicate backend authorization rules.
 
 ## File Map
@@ -91,10 +92,11 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 
 ## Workflow For Implementers
 
-1. Use Cursor Plan mode for subtasks marked `high`, especially shadcn setup and session-auth API behavior.
-2. In Agent mode, use the `test-driven-development` skill when adding meaningful behavior. Frontend verification may rely on build checks and manual browser checks until UI test tooling is introduced.
-3. Keep frontend state simple: TanStack Query for server data, React state for local UI only.
-4. If backend API contracts change, update this plan and the frontend API types before continuing.
+1. **writing-plans** produced this file (type-1 decomposition only).
+2. For each subtask with **Plan mode: high** or **medium**, use Cursor **Plan mode** and the **planning-subtasks** skill to produce a type-2 plan (`.cursor/plans/*.plan.md`) before Agent mode when design risk warrants it.
+3. In **Agent mode**, obey each subtask's **TDD suitable** tag with the **test-driven-development** skill: **`yes`** → strict red/green/refactor for hooks, API helpers, guards, and form behavior; **`partial`** → TDD only the named **TDD slice**; **`no`** → satisfy **Verification** without forcing test-first.
+4. Keep frontend state simple: TanStack Query for server data, React state for local UI only.
+5. If backend API contracts change, pause, update this plan and `src/types/api.ts`, and add a **Plan changelog** row.
 
 ## Subtasks
 
@@ -222,7 +224,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ## TDD Note For Agent Mode
 
-When implementing, follow the `test-driven-development` skill where practical. For frontend work, keep each change buildable, prefer small components, and add tests only if the project introduces frontend test tooling during this milestone.
+Per subtask, obey **TDD suitable**: **`yes`** → strict **test-driven-development** for hooks, API helpers, guards, and form submit/validation behavior (requires Vitest from **F4**); **`partial`** → TDD only the named **TDD slice**, then satisfy **Manual slice** via build/browser review; **`no`** → satisfy **Verification** without forcing test-first. UI polish, layout, and subjective feel stay in manual verification unless the team adds visual regression tooling later.
 
 ## Plan Changelog
 
@@ -230,3 +232,4 @@ When implementing, follow the `test-driven-development` skill where practical. F
 |------|--------|
 | 2026-05-15 | Created frontend milestone plan from the original monolithic FocusFlow AI plan. |
 | 2026-05-23 | Added `TDD suitable` classification to all frontend subtasks (F1-F15). |
+| 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, TDD/manual slices for partial UI work, Vitest introduction in F4, updated discovery reuse note. |

@@ -14,7 +14,8 @@ Out of scope: production deployment, CI/CD, cloud database setup, real user moni
 
 - Reuse: This milestone assumes Milestone 1 and Milestone 2 are complete enough to run locally.
 - Constraints: Keep integration fixes narrow. If a backend or frontend contract is wrong, update the relevant milestone plan before changing broad architecture.
-- Patterns to establish: Treat integration issues as contract issues first: API shape, cookies, CSRF, CORS/proxy, error payloads, and TypeScript types.
+- Patterns to follow: Treat integration issues as contract issues first: API shape, cookies, CSRF, CORS/proxy, error payloads, and TypeScript types.
+- Fix protocol: When a browser check reveals a backend bug, add or extend an automated backend test first, then re-run the manual browser check.
 - Anti-goals: Do not add new major features during integration. Do not use integration work to introduce JWT, Redux, SSR, or deployment infrastructure.
 
 ## File Map
@@ -62,10 +63,10 @@ Out of scope: production deployment, CI/CD, cloud database setup, real user moni
 
 ## Workflow For Implementers
 
-1. Start with evidence: run the app, observe exact failures, then plan the smallest fix.
-2. Use Cursor Plan mode for high-risk integration fixes, especially security, proxy, and API helper changes.
-3. Use the `test-driven-development` skill when changing backend behavior. For browser-specific integration, document the manual check performed.
-4. If integration reveals a wrong contract in Milestone 1 or 2, update the affected plan and add a changelog entry.
+1. **writing-plans** produced this file (type-1 decomposition only).
+2. Start with evidence: run the app, observe exact failures, then use Cursor **Plan mode** and the **planning-subtasks** skill for high-risk fixes (security, proxy, API helper) before Agent mode.
+3. In **Agent mode**, obey each subtask's **TDD suitable** tag: **`yes`** → strict **test-driven-development**; **`partial`** → manual verification first, then TDD only the named **TDD slice** for any code fix; **`no`** → satisfy **Verification** and record the manual check.
+4. If integration reveals a wrong contract in Milestone 1 or 2, pause, update the affected type-1 plan, and add a **Plan changelog** row.
 
 ## Subtasks
 
@@ -185,7 +186,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ## TDD Note For Agent Mode
 
-When implementing backend behavior changes during integration, follow the `test-driven-development` skill. Browser integration checks should be recorded in README or the task notes so the manual verification path remains repeatable.
+Per subtask, obey **TDD suitable**: **`partial`** integration work starts with the **Manual slice** to reproduce the issue, then applies strict **test-driven-development** only to the named **TDD slice** before re-running the manual check; **`no`** tasks record the verification steps in README or task notes so the path stays repeatable. Any backend behavior change discovered during integration must land with an automated test even when the subtask is **`partial`**.
 
 ## Plan Changelog
 
@@ -193,3 +194,4 @@ When implementing backend behavior changes during integration, follow the `test-
 |------|--------|
 | 2026-05-15 | Created integration milestone plan from the original monolithic FocusFlow AI plan. |
 | 2026-05-23 | Added `TDD suitable` classification to all integration subtasks (I1-I14). |
+| 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, TDD/manual slices for partial integration work, fix-protocol discovery note. |

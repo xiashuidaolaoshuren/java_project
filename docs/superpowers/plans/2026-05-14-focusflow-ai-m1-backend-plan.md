@@ -14,7 +14,7 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 
 - Reuse: The repository currently contains the approved design spec and planning docs only. There is no existing app code to preserve.
 - Constraints: Use Java 21, Spring Boot, Gradle, PostgreSQL, Spring Data JPA/Hibernate, Spring Security sessions, OpenAI API, JUnit 5, Mockito, Spring MVC tests, and Testcontainers.
-- Patterns to establish: Backend packages should stay focused by responsibility: `auth`, `user`, `security`, `task`, `plan`, `ai`, and `common/error`.
+- Patterns to follow: Backend packages stay focused by responsibility: `auth`, `user`, `security`, `task`, `plan`, `ai`, and `common/error`.
 - Anti-goals: Do not introduce JWT, a vector database, frontend-specific work, or broad infrastructure beyond local PostgreSQL and backend configuration.
 
 ## File Map
@@ -47,6 +47,8 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/src/main/java/com/focusflow/common/error/GlobalExceptionHandler.java` | create | Map validation, auth, forbidden, missing-record, and provider failures to HTTP responses. | Controller advice. |
 | `backend/src/main/java/com/focusflow/common/error/NotFoundException.java` | create | Represent missing user-owned records. | Service-layer exception. |
 | `backend/src/main/java/com/focusflow/common/error/ForbiddenOperationException.java` | create | Represent disallowed user actions. | Service-layer exception. |
+| `backend/src/main/java/com/focusflow/common/error/ConflictException.java` | create/modify | Represent duplicate account registration conflicts. | Service-layer exception. |
+| `backend/src/test/java/com/focusflow/common/error/GlobalExceptionHandlerTest.java` | create/modify | Verify standardized error mapping. | JUnit tests. |
 
 ### Auth, User, And Security
 
@@ -55,7 +57,8 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/src/main/java/com/focusflow/user/User.java` | create | Persist user account identity and password hash. | JPA entity. |
 | `backend/src/main/java/com/focusflow/user/UserRepository.java` | create | Query users by email or username. | Spring Data repository. |
 | `backend/src/main/java/com/focusflow/security/SecurityConfig.java` | create | Configure session auth, endpoint authorization, CSRF, CORS/dev origin behavior, logout, and password encoding. | Security filter chain and beans. |
-| `backend/src/main/java/com/focusflow/security/CurrentUser.java` | create | Represent authenticated user identity in controllers/services. | Current-user access abstraction. |
+| `backend/src/main/java/com/focusflow/security/CurrentUser.java` | create/modify | Represent authenticated user identity in controllers/services. | Current-user access abstraction. |
+| `backend/src/main/java/com/focusflow/security/FocusFlowUserDetailsService.java` | create/modify | Load users for Spring Security authentication. | UserDetailsService bean. |
 | `backend/src/main/java/com/focusflow/auth/AuthController.java` | create | Expose auth endpoints. | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`. |
 | `backend/src/main/java/com/focusflow/auth/AuthService.java` | create | Register users, validate uniqueness, encode passwords, and return current-user data. | Auth business operations. |
 | `backend/src/main/java/com/focusflow/auth/dto/*.java` | create | Define auth request and response payloads. | Auth API DTOs. |
@@ -82,17 +85,24 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/src/main/java/com/focusflow/plan/DailyPlanService.java` | create | Coordinate active tasks, AI generation, validation, and persistence. | Daily-plan operations. |
 | `backend/src/main/java/com/focusflow/plan/DailyPlanController.java` | create | Expose plan generation and read endpoints. | `/api/daily-plans` API. |
 | `backend/src/main/java/com/focusflow/plan/dto/*.java` | create | Define plan request and response payloads. | Daily-plan API DTOs. |
-| `backend/src/main/java/com/focusflow/ai/DailyPlanAiClient.java` | create | Provide a mockable AI generation boundary. | Java interface. |
-| `backend/src/main/java/com/focusflow/ai/DailyPlanPromptBuilder.java` | create | Build prompts from tasks and user planning input. | Prompt builder method. |
-| `backend/src/main/java/com/focusflow/ai/OpenAiProperties.java` | create | Bind OpenAI configuration. | Spring configuration properties. |
+| `backend/src/main/java/com/focusflow/ai/DailyPlanAiClient.java` | create/modify | Provide a mockable AI generation boundary. | Java interface. |
+| `backend/src/main/java/com/focusflow/ai/AiPlanTask.java` | create/modify | Represent one task in AI prompt input. | Internal AI DTO. |
+| `backend/src/main/java/com/focusflow/ai/AiPlanItem.java` | create/modify | Represent one ordered plan item from AI output. | Internal AI DTO. |
+| `backend/src/main/java/com/focusflow/ai/AiDailyPlanRequest.java` | create/modify | Bundle tasks and available focus time for AI generation. | Internal AI request. |
+| `backend/src/main/java/com/focusflow/ai/AiDailyPlanResponse.java` | create/modify | Bundle ordered AI plan items returned by provider. | Internal AI response. |
+| `backend/src/main/java/com/focusflow/ai/DailyPlanPromptBuilder.java` | create/modify | Build prompts from tasks and user planning input. | Prompt builder method. |
+| `backend/src/main/java/com/focusflow/ai/OpenAiProperties.java` | create/modify | Bind OpenAI configuration. | Spring configuration properties. |
 | `backend/src/main/java/com/focusflow/ai/OpenAiDailyPlanClient.java` | create | Call OpenAI and map structured output into internal data. | OpenAI adapter. |
-| `backend/src/main/java/com/focusflow/ai/AiProviderException.java` | create | Represent provider failures safely. | Service-layer exception. |
+| `backend/src/main/java/com/focusflow/ai/AiProviderException.java` | create/modify | Represent provider failures safely. | Service-layer exception. |
+| `backend/src/test/java/com/focusflow/ai/DailyPlanPromptBuilderTest.java` | create/modify | Verify deterministic prompt output. | JUnit tests. |
+| `backend/src/test/java/com/focusflow/ai/OpenAiPropertiesTest.java` | create/modify | Verify OpenAI config binding. | JUnit tests. |
 
 ### Backend Tests
 
 | Path | Create/Modify | Responsibility | Public Surface |
 |------|----------------|----------------|----------------|
-| `backend/src/test/java/com/focusflow/testsupport/*.java` | create | Shared builders, factories, and security test helpers. | Test-only utilities. |
+| `backend/src/test/java/com/focusflow/testsupport/*.java` | create/modify | Shared builders, factories, security helpers, and AI test configuration. | Test-only utilities. |
+| `backend/src/test/java/com/focusflow/security/CurrentUserTest.java` | create/modify | Verify current-user resolution behavior. | JUnit tests. |
 | `backend/src/test/java/com/focusflow/auth/AuthControllerTest.java` | create | Verify auth endpoint behavior. | Spring MVC tests. |
 | `backend/src/test/java/com/focusflow/task/TaskServiceTest.java` | create | Verify task service behavior and user scoping. | Mockito unit tests. |
 | `backend/src/test/java/com/focusflow/task/TaskControllerTest.java` | create | Verify task endpoint behavior. | Spring MVC tests. |
@@ -115,10 +125,11 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 
 ## Workflow For Implementers
 
-1. Use Cursor Plan mode for subtasks marked `high`, especially security, persistence, and OpenAI work.
-2. In Agent mode, use the `test-driven-development` skill: failing test, minimal code, refactor.
-3. Keep the backend runnable without the frontend. Verify through tests and HTTP clients first.
-4. If implementation changes file paths or task order, update this plan and add a changelog entry.
+1. **writing-plans** produced this file (type-1 decomposition only).
+2. For each subtask with **Plan mode: high** or **medium**, use Cursor **Plan mode** and the **planning-subtasks** skill to produce a type-2 plan (`.cursor/plans/*.plan.md`) before Agent mode when design risk warrants it.
+3. In **Agent mode**, obey each subtask's **TDD suitable** tag with the **test-driven-development** skill: **`yes`** → strict red/green/refactor; **`partial`** → TDD only the named slice; **`no`** → satisfy **Verification** without forcing test-first.
+4. Keep the backend runnable without the frontend. Verify through tests and HTTP clients first.
+5. If implementation changes file paths, contracts, or task order, pause, update this plan, and add a **Plan changelog** row.
 
 ## Subtasks
 
@@ -270,7 +281,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ## TDD Note For Agent Mode
 
-When implementing, follow the `test-driven-development` skill. This plan does not replace red/green/refactor. Backend work should generally start with a service, controller, or integration test before production code.
+Per subtask, obey **TDD suitable**: **`yes`** means strict **test-driven-development** (red/green/refactor); **`no`** means satisfy **Verification** without forcing test-first; there are no **`partial`** backend subtasks in this milestone. Type-2 planning details belong in **planning-subtasks** plans for high/medium **Plan mode** work.
 
 ## Plan Changelog
 
@@ -278,3 +289,4 @@ When implementing, follow the `test-driven-development` skill. This plan does no
 |------|--------|
 | 2026-05-15 | Created backend milestone plan from the original monolithic FocusFlow AI plan. |
 | 2026-05-23 | Added `TDD suitable` classification to all backend subtasks (B1-B18). |
+| 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, separate `TDD suitable reason`, living file map/discovery updates, B16 verification breadth. |
