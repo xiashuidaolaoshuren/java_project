@@ -231,7 +231,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B16 - Add OpenAI Configuration And Prompt Builder
 
-- [ ] **Do:** Add OpenAI configuration properties and prompt-building logic that turns active tasks and available focus time into structured provider input.
+- [X] **Do:** Add OpenAI configuration properties and prompt-building logic that turns active tasks and available focus time into structured provider input.
 - **Blocked by:** B14
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanPromptBuilder*"`
