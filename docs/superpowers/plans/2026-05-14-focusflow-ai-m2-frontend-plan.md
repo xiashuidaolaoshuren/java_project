@@ -103,6 +103,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F1 - Scaffold Vite React TypeScript App
 
 - [ ] **Do:** Create the `frontend` Vite React TypeScript project and verify it builds before adding product code.
+- **TDD suitable:** no - Project bootstrap is structural setup validated by build checks.
 - **Blocked by:** -
 - **Plan mode:** high
 - **Verification:** `cd frontend; npm run build`
@@ -110,6 +111,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F2 - Configure Tailwind CSS And shadcn/ui
 
 - [ ] **Do:** Add Tailwind CSS, shadcn/ui config, global CSS, `cn` utility, and the first required UI components.
+- **TDD suitable:** partial - Deterministic utility/config pieces can be test-driven; visual composition relies on build/manual verification.
 - **Blocked by:** F1
 - **Plan mode:** high
 - **Verification:** `cd frontend; npm run build`
@@ -117,6 +119,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F3 - Add Router And App Layout Shell
 
 - [ ] **Do:** Add React Router, public/authenticated layouts, initial route pages, and navigation structure.
+- **TDD suitable:** partial - Routing and access behavior are testable, while layout presentation is primarily visual.
 - **Blocked by:** F2
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build`
@@ -124,6 +127,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F4 - Add TanStack Query And API Client Foundation
 
 - [ ] **Do:** Configure QueryClient and `api.ts` with JSON handling, credentials support, normalized errors, and an initial CSRF handling path that matches the backend contract.
+- **TDD suitable:** yes
 - **Blocked by:** F3
 - **Plan mode:** high
 - **Verification:** `cd frontend; npm run build`
@@ -131,6 +135,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F5 - Define Frontend API Types
 
 - [ ] **Do:** Add TypeScript types for auth, task, plan, and error payloads based on the backend DTO contracts.
+- **TDD suitable:** no - Static type declarations mirror contracts and are verified by typecheck/build.
 - **Blocked by:** F4 and Milestone 1 API contracts
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build`
@@ -138,6 +143,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F6 - Implement Current User Query And Protected Routes
 
 - [ ] **Do:** Add current-user query, loading behavior, unauthenticated redirects, and protected route behavior.
+- **TDD suitable:** yes
 - **Blocked by:** F5
 - **Plan mode:** high
 - **Verification:** `cd frontend; npm run build` and manual browser check with backend running
@@ -145,6 +151,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F7 - Build Login And Registration Pages
 
 - [ ] **Do:** Build login and registration forms using shadcn/ui components, auth mutations, validation display, and success redirects.
+- **TDD suitable:** yes
 - **Blocked by:** F6
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build` and manual register/login check
@@ -152,6 +159,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F8 - Build Logout And Session Refresh Behavior
 
 - [ ] **Do:** Add logout action, query invalidation, and refresh-safe authenticated shell behavior.
+- **TDD suitable:** yes
 - **Blocked by:** F7
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build` and manual logout/refresh check
@@ -159,6 +167,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F9 - Build Task Read View
 
 - [ ] **Do:** Add task API calls, task query hook, dashboard task list, loading state, error state, and empty state.
+- **TDD suitable:** yes
 - **Blocked by:** F8
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build` and manual task list check
@@ -166,6 +175,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F10 - Build Task Create Form
 
 - [ ] **Do:** Add task creation UI and mutation with query invalidation after successful create.
+- **TDD suitable:** yes
 - **Blocked by:** F9
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build` and manual create task check
@@ -173,6 +183,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F11 - Build Task Edit, Status, And Delete UI
 
 - [ ] **Do:** Add edit, status update, and delete actions with confirmation or safe UI feedback where appropriate.
+- **TDD suitable:** yes
 - **Blocked by:** F10
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build` and manual update/delete task check
@@ -180,6 +191,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F12 - Build Daily Plan Generation UI
 
 - [ ] **Do:** Add available focus time input, generate action, loading state, provider error display, and generated-plan rendering.
+- **TDD suitable:** yes
 - **Blocked by:** F11
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build` and manual generate-plan check
@@ -187,6 +199,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F13 - Build Plan History Page
 
 - [ ] **Do:** Add saved plan list query, history route, empty state, and links to detail pages.
+- **TDD suitable:** partial - Query and routing behavior are testable; most value is in UI composition/flow checks.
 - **Blocked by:** F12
 - **Plan mode:** skip
 - **Verification:** `cd frontend; npm run build` and manual plan history check
@@ -194,6 +207,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F14 - Build Plan Detail Page
 
 - [ ] **Do:** Add saved plan detail query and display for one plan by id.
+- **TDD suitable:** partial - Data-fetch behavior is testable; rendering details are primarily visual.
 - **Blocked by:** F13
 - **Plan mode:** skip
 - **Verification:** `cd frontend; npm run build` and manual plan detail check
@@ -201,6 +215,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 ### F15 - Frontend Polish And Accessibility Pass
 
 - [ ] **Do:** Review loading states, empty states, form labels, keyboard behavior, and common shadcn composition rules.
+- **TDD suitable:** no - Mostly visual/UX refinement validated through targeted manual checks.
 - **Blocked by:** F14
 - **Plan mode:** skip
 - **Verification:** `cd frontend; npm run build` and manual smoke check across all routes
@@ -214,3 +229,4 @@ When implementing, follow the `test-driven-development` skill where practical. F
 | Date | Change |
 |------|--------|
 | 2026-05-15 | Created frontend milestone plan from the original monolithic FocusFlow AI plan. |
+| 2026-05-23 | Added `TDD suitable` classification to all frontend subtasks (F1-F15). |

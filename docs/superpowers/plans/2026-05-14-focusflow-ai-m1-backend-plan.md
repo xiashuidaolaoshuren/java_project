@@ -127,6 +127,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B1 - Scaffold Backend Gradle Project
 
 - [X] **Do:** Create the `backend` Spring Boot Gradle project with Java 21, the application entrypoint, wrapper, and a smoke test that proves the Spring context can load.
+- **TDD suitable:** no - Project scaffolding and baseline wiring are mostly structural setup.
 - **Blocked by:** -
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test`
@@ -134,6 +135,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B2 - Add Local PostgreSQL Setup
 
 - [X] **Do:** Add `docker-compose.yml`, `.env.example`, datasource configuration, and a test profile so the backend can connect to local PostgreSQL while tests stay isolated.
+- **TDD suitable:** no - Declarative environment/configuration setup with verification-driven checks.
 - **Blocked by:** B1
 - **Plan mode:** high
 - **Verification:** `docker compose config` and `cd backend; .\gradlew.bat test`
@@ -141,6 +143,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B3 - Add Common Error Response Foundation
 
 - [X] **Do:** Add standard API error response classes and exception handling for validation, not-found, forbidden, and provider-style failures.
+- **TDD suitable:** yes
 - **Blocked by:** B1
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*GlobalExceptionHandler*"`
@@ -148,6 +151,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B4 - Model Users And Repository
 
 - [X] **Do:** Create the `User` entity and `UserRepository` with unique account identity and secure password-hash storage fields.
+- **TDD suitable:** yes
 - **Blocked by:** B2
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*PostgresIntegrationTest"`
@@ -155,6 +159,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B5 - Model Tasks And Repository
 
 - [X] **Do:** Create `Task`, `TaskPriority`, `TaskStatus`, and repository queries needed for owner-scoped task access.
+- **TDD suitable:** yes
 - **Blocked by:** B4
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*PostgresIntegrationTest"`
@@ -162,6 +167,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B6 - Model Daily Plans And Repository
 
 - [X] **Do:** Create `DailyPlan`, `DailyPlanItem`, and repository queries for owner-scoped plan history and plan lookup.
+- **TDD suitable:** yes
 - **Blocked by:** B5
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*PostgresIntegrationTest"`
@@ -169,6 +175,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B7 - Add Backend Test Support Utilities
 
 - [X] **Do:** Add small test builders, security helpers, and reusable fixtures for users, tasks, and plans so later tests remain readable.
+- **TDD suitable:** no - Test-only utility scaffolding without user-facing runtime behavior.
 - **Blocked by:** B4, B5, B6
 - **Plan mode:** skip
 - **Verification:** `cd backend; .\gradlew.bat test`
@@ -176,6 +183,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B8 - Implement User Registration
 
 - [X] **Do:** Add registration DTOs, service behavior, endpoint, validation, uniqueness checks, and password hashing.
+- **TDD suitable:** yes
 - **Blocked by:** B3, B4, B7
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*AuthControllerTest"`
@@ -183,6 +191,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B9 - Implement Session Login And Logout
 
 - [X] **Do:** Configure Spring Security session login/logout behavior and verify successful and failed login paths.
+- **TDD suitable:** yes
 - **Blocked by:** B8
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*AuthControllerTest"`
@@ -190,6 +199,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B10 - Implement Current User Endpoint
 
 - [X] **Do:** Add current-user resolution and `GET /api/auth/me` so clients can derive authentication state from the backend.
+- **TDD suitable:** yes
 - **Blocked by:** B9
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*AuthControllerTest"`
@@ -197,6 +207,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B11 - Implement Task Create And List
 
 - [X] **Do:** Add task DTOs, service methods, and endpoints for creating tasks and listing only the authenticated user's tasks.
+- **TDD suitable:** yes
 - **Blocked by:** B10
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*Task*"`
@@ -204,6 +215,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B12 - Implement Task Read, Update, And Delete
 
 - [X] **Do:** Add owner-scoped task detail, update, and delete behavior, including 404/403-style safeguards where appropriate.
+- **TDD suitable:** yes
 - **Blocked by:** B11
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*Task*"`
@@ -211,6 +223,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B13 - Define Daily Plan AI Boundary
 
 - [X] **Do:** Add `DailyPlanAiClient`, plan-generation request/response DTOs, and internal data objects needed to mock AI generation in service tests.
+- **TDD suitable:** yes
 - **Blocked by:** B12
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanServiceTest"`
@@ -218,6 +231,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B14 - Implement Daily Plan Generation With Mockable AI
 
 - [X] **Do:** Implement daily plan generation service and endpoint using active user tasks and the AI boundary, then persist validated plan output.
+- **TDD suitable:** yes
 - **Blocked by:** B13
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlan*"`
@@ -225,6 +239,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B15 - Implement Saved Plan Read Endpoints
 
 - [X] **Do:** Add owner-scoped saved plan list and detail endpoints for plan history.
+- **TDD suitable:** yes
 - **Blocked by:** B14
 - **Plan mode:** medium
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanControllerTest"`
@@ -232,6 +247,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B16 - Add OpenAI Configuration And Prompt Builder
 
 - [X] **Do:** Add OpenAI configuration properties and prompt-building logic that turns active tasks and available focus time into structured provider input.
+- **TDD suitable:** yes
 - **Blocked by:** B14
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test --tests "*DailyPlanPromptBuilder*"`
@@ -239,6 +255,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B17 - Implement OpenAI Adapter
 
 - [ ] **Do:** Implement `OpenAiDailyPlanClient` behind the AI interface, including provider error handling and structured output validation.
+- **TDD suitable:** yes
 - **Blocked by:** B16
 - **Plan mode:** high
 - **Verification:** `cd backend; .\gradlew.bat test` and one manual local generation check with `OPENAI_API_KEY`
@@ -246,6 +263,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 ### B18 - Backend Full Pass And Documentation Notes
 
 - [ ] **Do:** Run all backend tests, verify endpoints manually through an HTTP client, and update README with backend setup and Java learning notes.
+- **TDD suitable:** no - Verification/documentation pass, not a new behavior implementation slice.
 - **Blocked by:** B17
 - **Plan mode:** skip
 - **Verification:** `cd backend; .\gradlew.bat test` and README backend setup works from a clean checkout
@@ -259,3 +277,4 @@ When implementing, follow the `test-driven-development` skill. This plan does no
 | Date | Change |
 |------|--------|
 | 2026-05-15 | Created backend milestone plan from the original monolithic FocusFlow AI plan. |
+| 2026-05-23 | Added `TDD suitable` classification to all backend subtasks (B1-B18). |
