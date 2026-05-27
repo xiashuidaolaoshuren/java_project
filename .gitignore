@@ -4,3 +4,5 @@ backend/.gradle/
 .env
 
 .cursor/rules/
+scripts/*cookies*.txt
+scripts/b18-register.json

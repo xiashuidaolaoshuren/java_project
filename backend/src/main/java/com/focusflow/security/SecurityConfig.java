@@ -11,8 +11,10 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -41,6 +43,9 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain filterChain(
 			HttpSecurity http, DaoAuthenticationProvider authenticationProvider) throws Exception {
+		CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
+		csrfRequestHandler.setCsrfRequestAttributeName(null);
+
 		return http.authenticationProvider(authenticationProvider)
 				.authorizeHttpRequests(
 						auth ->
@@ -48,10 +53,15 @@ public class SecurityConfig {
 										.permitAll()
 										.anyRequest()
 										.authenticated())
+				.exceptionHandling(
+						ex ->
+								ex.authenticationEntryPoint(
+										new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
 				.csrf(
 						csrf ->
 								csrf.csrfTokenRepository(
-										CookieCsrfTokenRepository.withHttpOnlyFalse()))
+												CookieCsrfTokenRepository.withHttpOnlyFalse())
+										.csrfTokenRequestHandler(csrfRequestHandler))
 				.securityContext(ctx -> ctx.requireExplicitSave(false))
 				.logout(
 						logout ->

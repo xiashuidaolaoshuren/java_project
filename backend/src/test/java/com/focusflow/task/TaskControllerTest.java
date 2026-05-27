@@ -43,7 +43,7 @@ class TaskControllerTest {
 	private FocusFlowUserDetailsService userDetailsService;
 
 	@Test
-	void create_whenUnauthenticated_returns403() throws Exception {
+	void create_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(
 						post("/api/tasks")
 								.with(csrf())
@@ -54,7 +54,7 @@ class TaskControllerTest {
 										  "title": "Write tests"
 										}
 										"""))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(taskService, never()).create(any(CreateTaskRequest.class));
 	}
@@ -145,9 +145,9 @@ class TaskControllerTest {
 	}
 
 	@Test
-	void getById_whenUnauthenticated_returns403() throws Exception {
+	void getById_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(get("/api/tasks/1"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(taskService, never()).getForCurrentUser(1L);
 	}
@@ -190,7 +190,7 @@ class TaskControllerTest {
 	}
 
 	@Test
-	void update_whenUnauthenticated_returns403() throws Exception {
+	void update_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(
 						put("/api/tasks/1")
 								.with(csrf())
@@ -201,7 +201,7 @@ class TaskControllerTest {
 										  "title": "Updated"
 										}
 										"""))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(taskService, never()).updateForCurrentUser(any(Long.class), any(UpdateTaskRequest.class));
 	}
@@ -284,9 +284,9 @@ class TaskControllerTest {
 	}
 
 	@Test
-	void delete_whenUnauthenticated_returns403() throws Exception {
+	void delete_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(delete("/api/tasks/1").with(csrf()))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(taskService, never()).deleteForCurrentUser(1L);
 	}

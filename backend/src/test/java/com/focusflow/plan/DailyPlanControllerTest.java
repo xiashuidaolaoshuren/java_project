@@ -48,7 +48,7 @@ class DailyPlanControllerTest {
 	private FocusFlowUserDetailsService userDetailsService;
 
 	@Test
-	void generate_whenUnauthenticated_returns403() throws Exception {
+	void generate_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(
 						post("/api/daily-plans/generate")
 								.with(csrf())
@@ -59,7 +59,7 @@ class DailyPlanControllerTest {
 										  "availableMinutes": 120
 										}
 										"""))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(dailyPlanService, never()).generate(any(GeneratePlanRequest.class));
 	}
@@ -148,9 +148,9 @@ class DailyPlanControllerTest {
 	}
 
 	@Test
-	void list_whenUnauthenticated_returns403() throws Exception {
+	void list_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(get("/api/daily-plans"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(dailyPlanService, never()).listForCurrentUser(any());
 	}
@@ -200,9 +200,9 @@ class DailyPlanControllerTest {
 	}
 
 	@Test
-	void getById_whenUnauthenticated_returns403() throws Exception {
+	void getById_whenUnauthenticated_returns401() throws Exception {
 		mockMvc.perform(get("/api/daily-plans/1"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		verify(dailyPlanService, never()).getForCurrentUser(1L);
 	}

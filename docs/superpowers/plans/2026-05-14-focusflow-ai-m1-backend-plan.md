@@ -275,7 +275,7 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 
 ### B18 - Backend Full Pass And Documentation Notes
 
-- [ ] **Do:** Run all backend tests, verify endpoints manually through an HTTP client, and update README with backend setup and Java learning notes.
+- [X] **Do:** Run all backend tests, verify endpoints manually through an HTTP client, and update README with backend setup and Java learning notes.
 - **TDD suitable:** no - Verification/documentation pass, not a new behavior implementation slice.
 - **Blocked by:** B17
 - **Plan mode:** skip
@@ -293,3 +293,4 @@ Per subtask, obey **TDD suitable**: **`yes`** means strict **test-driven-develop
 | 2026-05-23 | Added `TDD suitable` classification to all backend subtasks (B1-B18). |
 | 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, separate `TDD suitable reason`, living file map/discovery updates, B16 verification breadth. |
 | 2026-05-23 | Updated B17 and AI file map for OpenAI-compatible provider support (`OPENAI_BASE_URL`, configurable model/base URL, adapter/config tests). |
+| 2026-05-27 | Completed B18: full backend test pass, manual HTTP verification scripts, README backend setup, and provider failure verification notes. |

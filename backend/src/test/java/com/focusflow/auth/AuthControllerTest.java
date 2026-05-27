@@ -115,8 +115,8 @@ class AuthControllerTest {
 	}
 
 	@Test
-	void me_whenUnauthenticated_returns403() throws Exception {
-		mockMvc.perform(get("/api/auth/me")).andExpect(status().isForbidden());
+	void me_whenUnauthenticated_returns401() throws Exception {
+		mockMvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
 
 		verify(authService, never()).getCurrentUser();
 	}
