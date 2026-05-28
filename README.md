@@ -190,6 +190,14 @@ Notes from verification:
 - Deleting a task referenced by a saved daily plan item fails with a database constraint (expected with current schema).
 - For local dev, set `SPRING_JPA_HIBERNATE_DDL_AUTO=update` because production config uses `ddl-auto: none`.
 
+## Layering checklist (contributors)
+
+- Controllers delegate to services only; never inject repositories.
+- Services own business logic and transactions; repositories handle persistence only.
+- Cross-feature reads go through facades (e.g. `TaskQueryService`), not another feature's repository.
+- Security exposes `UserContext`, not auth API DTOs, to other layers.
+- Architecture rules are enforced by `LayeredArchitectureTest` (ArchUnit) in `backend` tests.
+
 ## Java learning notes (Milestone 1)
 
 - **Layered packages**: `auth`, `user`, `security`, `task`, `plan`, `ai`, and `common/error` keep responsibilities focused.

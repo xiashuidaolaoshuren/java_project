@@ -12,9 +12,8 @@ import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
 import com.focusflow.task.Task;
-import com.focusflow.task.TaskRepository;
-import com.focusflow.task.TaskStatus;
-import com.focusflow.task.dto.TaskResponse;
+import com.focusflow.task.TaskQueryService;
+import com.focusflow.task.TaskResponseMapper;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import java.time.Instant;
@@ -30,30 +29,32 @@ import org.springframework.transaction.annotation.Transactional;
 public class DailyPlanService {
 
 	private final DailyPlanAiClient aiClient;
-	private final TaskRepository taskRepository;
+	private final TaskQueryService taskQueryService;
 	private final UserRepository userRepository;
 	private final CurrentUser currentUser;
 	private final DailyPlanRepository dailyPlanRepository;
+	private final TaskResponseMapper taskResponseMapper;
 
 	public DailyPlanService(
 			DailyPlanAiClient aiClient,
-			TaskRepository taskRepository,
+			TaskQueryService taskQueryService,
 			UserRepository userRepository,
 			CurrentUser currentUser,
-			DailyPlanRepository dailyPlanRepository) {
+			DailyPlanRepository dailyPlanRepository,
+			TaskResponseMapper taskResponseMapper) {
 		this.aiClient = aiClient;
-		this.taskRepository = taskRepository;
+		this.taskQueryService = taskQueryService;
 		this.userRepository = userRepository;
 		this.currentUser = currentUser;
 		this.dailyPlanRepository = dailyPlanRepository;
+		this.taskResponseMapper = taskResponseMapper;
 	}
 
 	@Transactional
 	public DailyPlanResponse generate(GeneratePlanRequest request) {
 		Long ownerId = currentUser.getCurrentUser().id();
 		LocalDate planDate = resolvePlanDate(request.planDate());
-		List<Task> activeTasks =
-				taskRepository.findByOwner_IdAndStatusOrderByDueDateAsc(ownerId, TaskStatus.OPEN);
+		List<Task> activeTasks = taskQueryService.findOpenTasksByOwnerId(ownerId);
 		Map<Long, Task> taskById =
 				activeTasks.stream()
 						.collect(
@@ -123,21 +124,11 @@ public class DailyPlanService {
 						.map(
 								item ->
 										new DailyPlanItemResponse(
-												item.getPosition(), toTaskResponse(item.getTask())))
+												item.getPosition(),
+												taskResponseMapper.toResponse(item.getTask())))
 						.toList();
 		return new DailyPlanResponse(
 				plan.getId(), plan.getPlanDate(), plan.getCreatedAt(), items);
-	}
-
-	private TaskResponse toTaskResponse(Task task) {
-		return new TaskResponse(
-				task.getId(),
-				task.getTitle(),
-				task.getDescription(),
-				task.getPriority(),
-				task.getStatus(),
-				task.getDueDate(),
-				task.getEstimatedMinutes());
 	}
 
 	private LocalDate resolvePlanDate(LocalDate planDate) {

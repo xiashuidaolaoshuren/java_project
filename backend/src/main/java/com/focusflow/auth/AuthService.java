@@ -5,6 +5,7 @@ import com.focusflow.auth.dto.RegisterRequest;
 import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.ConflictException;
 import com.focusflow.security.CurrentUser;
+import com.focusflow.security.UserContext;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -66,6 +67,7 @@ public class AuthService {
 	}
 
 	public UserResponse getCurrentUser() {
-		return currentUser.getCurrentUser();
+		UserContext context = currentUser.getCurrentUser();
+		return new UserResponse(context.id(), context.email(), context.username());
 	}
 }

@@ -12,14 +12,15 @@ import com.focusflow.ai.AiDailyPlanResponse;
 import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
-import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
+import com.focusflow.security.UserContext;
 import com.focusflow.task.Task;
 import com.focusflow.task.TaskPriority;
-import com.focusflow.task.TaskRepository;
+import com.focusflow.task.TaskQueryService;
+import com.focusflow.task.TaskResponseMapper;
 import com.focusflow.task.TaskStatus;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
@@ -27,10 +28,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -41,7 +42,7 @@ class DailyPlanServiceTest {
 	private DailyPlanAiClient aiClient;
 
 	@Mock
-	private TaskRepository taskRepository;
+	private TaskQueryService taskQueryService;
 
 	@Mock
 	private UserRepository userRepository;
@@ -52,20 +53,32 @@ class DailyPlanServiceTest {
 	@Mock
 	private DailyPlanRepository dailyPlanRepository;
 
-	@InjectMocks
+	private final TaskResponseMapper taskResponseMapper = new TaskResponseMapper();
+
 	private DailyPlanService dailyPlanService;
+
+	@BeforeEach
+	void setUp() {
+		dailyPlanService =
+				new DailyPlanService(
+						aiClient,
+						taskQueryService,
+						userRepository,
+						currentUser,
+						dailyPlanRepository,
+						taskResponseMapper);
+	}
 
 	@Test
 	void generate_callsAiClientWithCurrentUserActiveTasks() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		Task task = new Task();
 		task.setTitle("Write tests");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
-		when(taskRepository.findByOwner_IdAndStatusOrderByDueDateAsc(42L, TaskStatus.OPEN))
-				.thenReturn(List.of(task));
+		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of()));
 
@@ -85,9 +98,8 @@ class DailyPlanServiceTest {
 	@Test
 	void generate_whenAiClientThrows_propagatesAiProviderException() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
-		when(taskRepository.findByOwner_IdAndStatusOrderByDueDateAsc(42L, TaskStatus.OPEN))
-				.thenReturn(List.of());
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of());
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenThrow(new AiProviderException("provider down"));
 
@@ -99,14 +111,13 @@ class DailyPlanServiceTest {
 	@Test
 	void generate_persistsPlanAndReturnsResponse() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		Task task = new Task();
 		task.setTitle("Task 1");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
-		when(taskRepository.findByOwner_IdAndStatusOrderByDueDateAsc(42L, TaskStatus.OPEN))
-				.thenReturn(List.of(task));
+		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
 
 		AiPlanItem aiItem = new AiPlanItem(task.getId() != null ? task.getId() : 0L, 1);
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
@@ -131,9 +142,8 @@ class DailyPlanServiceTest {
 	@Test
 	void generate_whenAiReturnsUnknownTaskId_throwsAiProviderException() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
-		when(taskRepository.findByOwner_IdAndStatusOrderByDueDateAsc(42L, TaskStatus.OPEN))
-				.thenReturn(List.of());
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of());
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(999L, 1))));
 
@@ -144,7 +154,7 @@ class DailyPlanServiceTest {
 	@Test
 	void listForCurrentUser_whenNoPlanDate_usesAllHistoryQueryAndReturnsMappedResponses() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		DailyPlan plan = new DailyPlan();
 		plan.setPlanDate(LocalDate.of(2026, 6, 1));
@@ -164,7 +174,7 @@ class DailyPlanServiceTest {
 	@Test
 	void listForCurrentUser_whenPlanDateProvided_usesDateFilterQuery() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		LocalDate planDate = LocalDate.of(2026, 6, 1);
 		DailyPlan plan = new DailyPlan();
@@ -183,7 +193,7 @@ class DailyPlanServiceTest {
 	@Test
 	void getForCurrentUser_whenOwnedPlanExists_returnsMappedResponse() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		DailyPlan plan = new DailyPlan();
 		plan.setPlanDate(LocalDate.of(2026, 6, 1));
@@ -200,7 +210,7 @@ class DailyPlanServiceTest {
 	@Test
 	void getForCurrentUser_whenMissing_throwsNotFoundException() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "user@example.com", "user"));
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 		when(dailyPlanRepository.findByOwner_IdAndId(42L, 99L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> dailyPlanService.getForCurrentUser(99L))

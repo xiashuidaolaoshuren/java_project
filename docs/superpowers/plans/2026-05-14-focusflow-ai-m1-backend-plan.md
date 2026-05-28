@@ -111,6 +111,11 @@ Out of scope: React UI, browser integration, production deployment, RAG, embeddi
 | `backend/src/test/java/com/focusflow/plan/DailyPlanServiceTest.java` | create | Verify plan orchestration and AI failure behavior. | Mockito unit tests. |
 | `backend/src/test/java/com/focusflow/plan/DailyPlanControllerTest.java` | create | Verify daily-plan endpoint behavior. | Spring MVC tests. |
 | `backend/src/test/java/com/focusflow/integration/PostgresIntegrationTest.java` | create | Verify selected persistence flows against PostgreSQL. | Testcontainers integration test. |
+| `backend/src/main/java/com/focusflow/security/UserContext.java` | create | Domain-neutral authenticated user identity for cross-layer use. | `UserContext` record. |
+| `backend/src/main/java/com/focusflow/task/TaskQueryService.java` | create | Owner-scoped task reads for cross-feature consumers (e.g. daily plans). | `findOpenTasksByOwnerId`. |
+| `backend/src/main/java/com/focusflow/task/TaskResponseMapper.java` | create | Centralize `Task` → `TaskResponse` mapping. | `toResponse`. |
+| `backend/src/test/java/com/focusflow/architecture/LayeredArchitectureTest.java` | create | Enforce layering rules with ArchUnit. | ArchUnit rules. |
+| `.github/workflows/backend-ci.yml` | create | Run backend tests on push/PR. | GitHub Actions workflow. |
 
 ## Blast Radius
 
@@ -281,6 +286,14 @@ Dependency notation: `Blocked by: B1` means start after B1 is done.
 - **Plan mode:** skip
 - **Verification:** `cd backend; .\gradlew.bat test` and README backend setup works from a clean checkout, including default OpenAI and OpenAI-compatible provider env vars (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`)
 
+### B19 - Enforce 3-Layer Architecture Boundaries
+
+- [X] **Do:** Harden controller → service → repository layering: add ArchUnit guardrail tests, introduce `UserContext` (decouple `CurrentUser` from auth API DTOs), add `TaskQueryService` so `DailyPlanService` no longer uses `TaskRepository` directly, centralize task mapping in `TaskResponseMapper`, add backend CI workflow, and document the layering checklist in README.
+- **TDD suitable:** partial - Architecture rules and refactors verified by existing service/controller tests plus new `LayeredArchitectureTest`.
+- **Blocked by:** B18
+- **Plan mode:** medium
+- **Verification:** `cd backend; .\gradlew.bat test --tests "*LayeredArchitecture*"` and full `cd backend; .\gradlew.bat test` (unit/architecture scope)
+
 ## TDD Note For Agent Mode
 
 Per subtask, obey **TDD suitable**: **`yes`** means strict **test-driven-development** (red/green/refactor); **`no`** means satisfy **Verification** without forcing test-first; there are no **`partial`** backend subtasks in this milestone. Type-2 planning details belong in **planning-subtasks** plans for high/medium **Plan mode** work.
@@ -294,3 +307,4 @@ Per subtask, obey **TDD suitable**: **`yes`** means strict **test-driven-develop
 | 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, separate `TDD suitable reason`, living file map/discovery updates, B16 verification breadth. |
 | 2026-05-23 | Updated B17 and AI file map for OpenAI-compatible provider support (`OPENAI_BASE_URL`, configurable model/base URL, adapter/config tests). |
 | 2026-05-27 | Completed B18: full backend test pass, manual HTTP verification scripts, README backend setup, and provider failure verification notes. |
+| 2026-05-28 | Completed B19: 3-layer architecture hardening (ArchUnit, `UserContext`, `TaskQueryService`, `TaskResponseMapper`, backend CI, README layering checklist). |

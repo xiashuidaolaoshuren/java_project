@@ -1,6 +1,5 @@
 package com.focusflow.security;
 
-import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
@@ -17,7 +16,7 @@ public class CurrentUser {
 		this.userRepository = userRepository;
 	}
 
-	public UserResponse getCurrentUser() {
+	public UserContext getCurrentUser() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null || !authentication.isAuthenticated()) {
 			throw new NotFoundException("not authenticated");
@@ -28,6 +27,6 @@ public class CurrentUser {
 				userRepository
 						.findByUsername(username)
 						.orElseThrow(() -> new NotFoundException("user not found"));
-		return new UserResponse(user.getId(), user.getEmail(), user.getUsername());
+		return new UserContext(user.getId(), user.getEmail(), user.getUsername());
 	}
 }

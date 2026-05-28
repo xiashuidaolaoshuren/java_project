@@ -8,21 +8,21 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.security.CurrentUser;
+import com.focusflow.security.UserContext;
 import com.focusflow.task.dto.CreateTaskRequest;
 import com.focusflow.task.dto.TaskResponse;
 import com.focusflow.task.dto.UpdateTaskRequest;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDate;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,12 +38,20 @@ class TaskServiceTest {
 	@Mock
 	private CurrentUser currentUser;
 
-	@InjectMocks
+	private final TaskResponseMapper taskResponseMapper = new TaskResponseMapper();
+
 	private TaskService taskService;
+
+	@BeforeEach
+	void setUp() {
+		taskService =
+				new TaskService(
+						taskRepository, userRepository, currentUser, taskResponseMapper);
+	}
 
 	@Test
 	void create_bindsOwnerFromCurrentUser() {
-		UserResponse current = new UserResponse(42L, "owner@example.com", "owner");
+		UserContext current = new UserContext(42L, "owner@example.com", "owner");
 		when(currentUser.getCurrentUser()).thenReturn(current);
 
 		User owner = new User();
@@ -62,7 +70,7 @@ class TaskServiceTest {
 
 	@Test
 	void create_defaultsStatusOpenAndPriorityMediumWhenOmitted() {
-		UserResponse current = new UserResponse(42L, "owner@example.com", "owner");
+		UserContext current = new UserContext(42L, "owner@example.com", "owner");
 		when(currentUser.getCurrentUser()).thenReturn(current);
 
 		User owner = new User();
@@ -82,7 +90,7 @@ class TaskServiceTest {
 	@Test
 	void list_fetchesByOwnerId() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 
 		Task task = new Task();
 		task.setTitle("Listed");
@@ -97,7 +105,7 @@ class TaskServiceTest {
 	@Test
 	void getForCurrentUser_whenTaskOwnedByCurrentUser_returnsTaskResponse() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 
 		Task task = new Task();
 		task.setTitle("My task");
@@ -118,7 +126,7 @@ class TaskServiceTest {
 	@Test
 	void getForCurrentUser_whenTaskMissingOrNotOwned_throwsNotFoundException() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 		when(taskRepository.findByOwner_IdAndId(42L, 99L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> taskService.getForCurrentUser(99L))
@@ -129,7 +137,7 @@ class TaskServiceTest {
 	@Test
 	void updateForCurrentUser_whenOwned_updatesFieldsAndReturnsResponse() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 
 		Task task = new Task();
 		task.setTitle("Old title");
@@ -164,7 +172,7 @@ class TaskServiceTest {
 	@Test
 	void updateForCurrentUser_whenNotOwned_throwsNotFoundException() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 		when(taskRepository.findByOwner_IdAndId(42L, 99L)).thenReturn(Optional.empty());
 
 		UpdateTaskRequest request =
@@ -178,7 +186,7 @@ class TaskServiceTest {
 	@Test
 	void deleteForCurrentUser_whenOwned_deletesTask() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 
 		Task task = new Task();
 		task.setTitle("To delete");
@@ -192,7 +200,7 @@ class TaskServiceTest {
 	@Test
 	void deleteForCurrentUser_whenNotOwned_throwsNotFoundException() {
 		when(currentUser.getCurrentUser())
-				.thenReturn(new UserResponse(42L, "owner@example.com", "owner"));
+				.thenReturn(new UserContext(42L, "owner@example.com", "owner"));
 		when(taskRepository.findByOwner_IdAndId(42L, 99L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> taskService.deleteForCurrentUser(99L))

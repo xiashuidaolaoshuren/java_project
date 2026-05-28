@@ -1,8 +1,8 @@
 package com.focusflow.task;
 
-import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.security.CurrentUser;
+import com.focusflow.security.UserContext;
 import com.focusflow.task.dto.CreateTaskRequest;
 import com.focusflow.task.dto.TaskResponse;
 import com.focusflow.task.dto.UpdateTaskRequest;
@@ -18,14 +18,17 @@ public class TaskService {
 	private final TaskRepository taskRepository;
 	private final UserRepository userRepository;
 	private final CurrentUser currentUser;
+	private final TaskResponseMapper taskResponseMapper;
 
 	public TaskService(
 			TaskRepository taskRepository,
 			UserRepository userRepository,
-			CurrentUser currentUser) {
+			CurrentUser currentUser,
+			TaskResponseMapper taskResponseMapper) {
 		this.taskRepository = taskRepository;
 		this.userRepository = userRepository;
 		this.currentUser = currentUser;
+		this.taskResponseMapper = taskResponseMapper;
 	}
 
 	@Transactional
@@ -42,18 +45,18 @@ public class TaskService {
 		task.setDueDate(request.dueDate());
 		task.setEstimatedMinutes(request.estimatedMinutes());
 
-		return toResponse(taskRepository.save(task));
+		return taskResponseMapper.toResponse(taskRepository.save(task));
 	}
 
 	public List<TaskResponse> listForCurrentUser() {
 		Long ownerId = currentUser.getCurrentUser().id();
 		return taskRepository.findByOwner_IdOrderByDueDateAsc(ownerId).stream()
-				.map(this::toResponse)
+				.map(taskResponseMapper::toResponse)
 				.toList();
 	}
 
 	public TaskResponse getForCurrentUser(Long taskId) {
-		return toResponse(loadTaskForCurrentUser(taskId));
+		return taskResponseMapper.toResponse(loadTaskForCurrentUser(taskId));
 	}
 
 	@Transactional
@@ -66,7 +69,7 @@ public class TaskService {
 		task.setStatus(request.status() != null ? request.status() : TaskStatus.OPEN);
 		task.setDueDate(request.dueDate());
 		task.setEstimatedMinutes(request.estimatedMinutes());
-		return toResponse(taskRepository.save(task));
+		return taskResponseMapper.toResponse(taskRepository.save(task));
 	}
 
 	@Transactional
@@ -76,7 +79,7 @@ public class TaskService {
 	}
 
 	private User loadCurrentUserEntity() {
-		UserResponse current = currentUser.getCurrentUser();
+		UserContext current = currentUser.getCurrentUser();
 		return userRepository
 				.findById(current.id())
 				.orElseThrow(() -> new NotFoundException("user not found"));
@@ -89,14 +92,4 @@ public class TaskService {
 				.orElseThrow(() -> new NotFoundException("task not found"));
 	}
 
-	private TaskResponse toResponse(Task task) {
-		return new TaskResponse(
-				task.getId(),
-				task.getTitle(),
-				task.getDescription(),
-				task.getPriority(),
-				task.getStatus(),
-				task.getDueDate(),
-				task.getEstimatedMinutes());
-	}
 }

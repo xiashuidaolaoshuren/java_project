@@ -3,7 +3,6 @@ package com.focusflow.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.focusflow.auth.dto.UserResponse;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import java.util.Optional;
@@ -31,7 +30,7 @@ class CurrentUserTest {
 	}
 
 	@Test
-	void getCurrentUser_whenAuthenticated_returnsUserResponse() {
+	void getCurrentUser_whenAuthenticated_returnsUserContext() {
 		SecurityContextHolder.getContext()
 				.setAuthentication(
 						new UsernamePasswordAuthenticationToken("alice", "n/a", java.util.List.of()));
@@ -42,9 +41,9 @@ class CurrentUserTest {
 		user.setPasswordHash("$2a$10$hash");
 		when(userRepository.findByUsername("alice")).thenReturn(Optional.of(user));
 
-		UserResponse response = currentUser.getCurrentUser();
+		UserContext context = currentUser.getCurrentUser();
 
-		assertThat(response.email()).isEqualTo("alice@example.com");
-		assertThat(response.username()).isEqualTo("alice");
+		assertThat(context.email()).isEqualTo("alice@example.com");
+		assertThat(context.username()).isEqualTo("alice");
 	}
 }
