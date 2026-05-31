@@ -104,7 +104,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F1 - Scaffold Vite React TypeScript App
 
-- [ ] **Do:** Create the `frontend` Vite React TypeScript project and verify it builds before adding product code.
+- [X] **Do:** Create the `frontend` Vite React TypeScript project and verify it builds before adding product code.
 - **TDD suitable:** no - Project bootstrap is structural setup validated by build checks.
 - **Blocked by:** -
 - **Plan mode:** high
@@ -112,7 +112,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F2 - Configure Tailwind CSS And shadcn/ui
 
-- [ ] **Do:** Add Tailwind CSS, shadcn/ui config, global CSS, `cn` utility, and the first required UI components.
+- [X] **Do:** Add Tailwind CSS, shadcn/ui config, global CSS, `cn` utility, and the first required UI components.
 - **TDD suitable:** partial - Deterministic utility/config pieces can be test-driven; visual composition relies on build/manual verification.
 - **Blocked by:** F1
 - **Plan mode:** high
