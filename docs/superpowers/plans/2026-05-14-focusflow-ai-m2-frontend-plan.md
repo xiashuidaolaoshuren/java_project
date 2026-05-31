@@ -120,7 +120,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F3 - Add Router And App Layout Shell
 
-- [ ] **Do:** Add React Router, public/authenticated layouts, initial route pages, and navigation structure.
+- [X] **Do:** Add React Router, public/authenticated layouts, initial route pages, and navigation structure.
 - **TDD suitable:** partial - Routing and access behavior are testable, while layout presentation is primarily visual.
 - **Blocked by:** F2
 - **Plan mode:** medium
