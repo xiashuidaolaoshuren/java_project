@@ -1,6 +1,7 @@
 # Implementation Plan: FocusFlow AI Milestone 2 - Frontend MVP
 
 **Spec:** `docs/superpowers/specs/2026-05-14-focusflow-ai-design.md`  
+**UI design spec:** `docs/superpowers/specs/2026-05-31-focusflow-frontend-ui-design.md`  
 **Created:** 2026-05-15  
 **Milestone scope:** React/Vite frontend for auth, tasks, daily plan generation, and saved plan review.
 
@@ -13,6 +14,7 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 ## Discovery Notes
 
 - Reuse: Milestone 1 backend API is implemented and is the contract source for frontend types and API calls.
+- UI design: `docs/superpowers/specs/2026-05-31-focusflow-frontend-ui-design.md` defines the visual direction (modern/polished, indigo–violet accent, light+dark), the left-sidebar app shell, two-column dashboard, sheet-based task editing, timeline plan view, and the loading/empty/error state conventions that **F3b** and F7–F15 must follow.
 - Constraints: Follow the approved frontend stack: React, Vite, TypeScript, shadcn/ui, Tailwind CSS, React Router, and TanStack Query.
 - Patterns to follow: Keep API access in `src/lib/api.ts`, server state in TanStack Query hooks, route pages in `src/routes`, and feature-specific UI in `src/features`.
 - Test tooling: Introduce Vitest and React Testing Library during **F4** so **`TDD suitable: yes`** subtasks can test hooks, API helpers, and route guards; until then rely on build checks plus manual browser verification.
@@ -50,8 +52,9 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 | `frontend/src/routes/DashboardPage.tsx` | create | Render authenticated task dashboard and plan generation entrypoint. | `/dashboard`. |
 | `frontend/src/routes/PlanHistoryPage.tsx` | create | Render saved plans. | `/plans`. |
 | `frontend/src/routes/PlanDetailPage.tsx` | create | Render one saved plan. | `/plans/:id`. |
-| `frontend/src/components/layout/AppLayout.tsx` | create | Provide shared authenticated layout and navigation. | Layout component. |
-| `frontend/src/components/layout/PublicLayout.tsx` | create | Provide public auth-page layout. | Layout component. |
+| `frontend/src/components/layout/AppLayout.tsx` | create | Provide shared authenticated **left-sidebar** shell with nav, theme toggle, and user menu (per UI spec). | Layout component. |
+| `frontend/src/components/layout/PublicLayout.tsx` | create | Provide public auth-page layout with a centered auth card. | Layout component. |
+| `frontend/src/components/theme/*` | create | Provide light/dark theme provider, toggle, and persisted preference (per UI spec). | Theme provider and toggle. |
 
 ### Features
 
@@ -77,7 +80,7 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 
 | Path | Create/Modify | Responsibility | Public Surface |
 |------|----------------|----------------|----------------|
-| `frontend/src/components/ui/*` | create | Store shadcn/ui generated components. | UI component imports. |
+| `frontend/src/components/ui/*` | create | Store shadcn/ui generated components. Existing: button, card, input, label, field, form, alert, separator. UI spec adds: sheet, dialog, dropdown-menu, sonner, badge, skeleton, select, and a date input as feature work reaches them. | UI component imports. |
 
 ## Blast Radius
 
@@ -126,11 +129,19 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build`
 
+### F3b - Align App Shell With UI Design Spec
+
+- [ ] **Do:** Bring the F3 layout shell in line with `2026-05-31-focusflow-frontend-ui-design.md`: replace the centered top nav in `AppLayout` with a left sidebar (nav links, theme toggle, user-menu placeholder), center the auth card in `PublicLayout`, add the theme provider/toggle with persisted light/dark preference, and update `--primary` / related CSS variables to the indigo–violet accent. Add shadcn components needed for the shell (e.g. `dropdown-menu`, `skeleton` if used in nav).
+- **TDD suitable:** partial - Theme preference persistence and routing/nav active state are testable; sidebar presentation is primarily visual.
+- **Blocked by:** F3
+- **Plan mode:** medium
+- **Verification:** `cd frontend; npm run build` and manual check of sidebar nav, theme toggle, and public auth layout in the browser
+
 ### F4 - Add TanStack Query And API Client Foundation
 
 - [ ] **Do:** Configure QueryClient and `api.ts` with JSON handling, credentials support, normalized errors, and an initial CSRF handling path that matches the backend contract.
 - **TDD suitable:** yes
-- **Blocked by:** F3
+- **Blocked by:** F3b
 - **Plan mode:** high
 - **Verification:** `cd frontend; npm run build`
 
@@ -233,3 +244,5 @@ Per subtask, obey **TDD suitable**: **`yes`** → strict **test-driven-developme
 | 2026-05-15 | Created frontend milestone plan from the original monolithic FocusFlow AI plan. |
 | 2026-05-23 | Added `TDD suitable` classification to all frontend subtasks (F1-F15). |
 | 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, TDD/manual slices for partial UI work, Vitest introduction in F4, updated discovery reuse note. |
+| 2026-05-31 | Linked the new frontend UI design spec (`2026-05-31-focusflow-frontend-ui-design.md`): added UI spec references, sidebar shell + theme module file-map entries, expanded UI component inventory, and an F3 sidebar follow-up note. |
+| 2026-05-31 | Added **F3b** (align app shell with UI spec) after completed F3; F4 now blocked by F3b; removed inline F3 follow-up note. |
