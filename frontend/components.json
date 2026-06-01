@@ -20,8 +20,5 @@
     "hooks": "@/hooks"
   },
   "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {
-    "@shadcn": "https://ui.shadcn.com/r/styles/{style}/{name}.json"
-  }
+  "menuAccent": "subtle"
 }

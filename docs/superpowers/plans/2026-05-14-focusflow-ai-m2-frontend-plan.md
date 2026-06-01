@@ -131,7 +131,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F3b - Align App Shell With UI Design Spec
 
-- [ ] **Do:** Bring the F3 layout shell in line with `2026-05-31-focusflow-frontend-ui-design.md`: replace the centered top nav in `AppLayout` with a left sidebar (nav links, theme toggle, user-menu placeholder), center the auth card in `PublicLayout`, add the theme provider/toggle with persisted light/dark preference, and update `--primary` / related CSS variables to the indigo–violet accent. Add shadcn components needed for the shell (e.g. `dropdown-menu`, `skeleton` if used in nav).
+- [X] **Do:** Bring the F3 layout shell in line with `2026-05-31-focusflow-frontend-ui-design.md`: replace the centered top nav in `AppLayout` with a left sidebar (nav links, theme toggle, user-menu placeholder), center the auth card in `PublicLayout`, add the theme provider/toggle with persisted light/dark preference, and update `--primary` / related CSS variables to the indigo–violet accent. Add shadcn components needed for the shell (e.g. `dropdown-menu`, `skeleton` if used in nav).
 - **TDD suitable:** partial - Theme preference persistence and routing/nav active state are testable; sidebar presentation is primarily visual.
 - **Blocked by:** F3
 - **Plan mode:** medium
