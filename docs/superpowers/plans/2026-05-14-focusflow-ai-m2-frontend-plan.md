@@ -139,7 +139,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F4 - Add TanStack Query And API Client Foundation
 
-- [ ] **Do:** Configure QueryClient and `api.ts` with JSON handling, credentials support, normalized errors, and an initial CSRF handling path that matches the backend contract.
+- [X] **Do:** Configure QueryClient and `api.ts` with JSON handling, credentials support, normalized errors, and an initial CSRF handling path that matches the backend contract.
 - **TDD suitable:** yes
 - **Blocked by:** F3b
 - **Plan mode:** high
