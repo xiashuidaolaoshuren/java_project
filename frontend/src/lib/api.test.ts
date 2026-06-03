@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { apiRequest, ApiError } from '@/lib/api'
+import type { ApiErrorResponse, LoginRequest, UserResponse } from '@/types/api'
 
 describe('apiRequest', () => {
   afterEach(() => {
@@ -25,17 +26,19 @@ describe('apiRequest', () => {
   })
 
   it('serializes JSON request bodies and parses JSON responses', async () => {
+    const user: UserResponse = { id: 1, email: 'a@b.com', username: 'user' }
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ id: 1, email: 'a@b.com' }), {
+      new Response(JSON.stringify(user), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await apiRequest<{ id: number; email: string }>('/api/auth/login', {
+    const loginBody: LoginRequest = { username: 'user', password: 'secret' }
+    const result = await apiRequest<UserResponse>('/api/auth/login', {
       method: 'POST',
-      body: { username: 'user', password: 'secret' },
+      body: loginBody,
     })
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -45,10 +48,10 @@ describe('apiRequest', () => {
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
         }),
-        body: JSON.stringify({ username: 'user', password: 'secret' }),
+        body: JSON.stringify(loginBody),
       }),
     )
-    expect(result).toEqual({ id: 1, email: 'a@b.com' })
+    expect(result).toEqual(user)
   })
 
   it('throws ApiError with normalized fields from JSON error payloads', async () => {
@@ -62,7 +65,7 @@ describe('apiRequest', () => {
             message: 'Validation failed',
             path: '/api/tasks',
             details: { title: ['must not be blank'] },
-          }),
+          } satisfies ApiErrorResponse),
           {
             status: 400,
             headers: { 'Content-Type': 'application/json' },
@@ -126,9 +129,10 @@ describe('apiRequest CSRF', () => {
     vi.stubGlobal('fetch', fetchMock)
     document.cookie = 'XSRF-TOKEN=csrf-token-value'
 
+    const loginBody: LoginRequest = { username: 'user', password: 'secret' }
     await apiRequest('/api/auth/login', {
       method: 'POST',
-      body: { username: 'user', password: 'secret' },
+      body: loginBody,
     })
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]

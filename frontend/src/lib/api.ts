@@ -1,29 +1,25 @@
+import type { ApiErrorResponse } from '@/types/api'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const CSRF_HEADER_NAME = 'X-XSRF-TOKEN'
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-
-export type ApiErrorBody = {
-  status: number
-  error?: string
-  message: string
-  path?: string
-  details?: Record<string, string[]>
-}
 
 export class ApiError extends Error {
   readonly status: number
   readonly error?: string
   readonly path?: string
   readonly details?: Record<string, string[]>
+  readonly timestamp?: string
 
-  constructor(body: ApiErrorBody) {
+  constructor(body: ApiErrorResponse) {
     super(body.message)
     this.name = 'ApiError'
     this.status = body.status
     this.error = body.error
     this.path = body.path
     this.details = body.details
+    this.timestamp = body.timestamp
   }
 }
 
@@ -58,9 +54,10 @@ async function normalizeError(response: Response): Promise<ApiError> {
   const contentType = response.headers.get('Content-Type')
   if (contentType?.includes('application/json')) {
     try {
-      const data = (await response.json()) as Partial<ApiErrorBody>
+      const data = (await response.json()) as Partial<ApiErrorResponse>
       return new ApiError({
         status: response.status,
+        timestamp: data.timestamp,
         error: data.error,
         message:
           data.message ??
