@@ -147,7 +147,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F5 - Define Frontend API Types
 
-- [ ] **Do:** Add TypeScript types for auth, task, plan, and error payloads based on the backend DTO contracts.
+- [X] **Do:** Add TypeScript types for auth, task, plan, and error payloads based on the backend DTO contracts.
 - **TDD suitable:** no - Static type declarations mirror contracts and are verified by typecheck/build.
 - **Blocked by:** F4 and Milestone 1 API contracts
 - **Plan mode:** medium
