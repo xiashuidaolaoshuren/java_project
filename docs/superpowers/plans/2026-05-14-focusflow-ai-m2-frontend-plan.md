@@ -155,7 +155,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F6 - Implement Current User Query And Protected Routes
 
-- [ ] **Do:** Add current-user query, loading behavior, unauthenticated redirects, and protected route behavior.
+- [X] **Do:** Add current-user query, loading behavior, unauthenticated redirects, and protected route behavior.
 - **TDD suitable:** yes
 - **Blocked by:** F5
 - **Plan mode:** high
