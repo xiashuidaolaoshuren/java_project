@@ -163,7 +163,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F7 - Build Login And Registration Pages
 
-- [ ] **Do:** Build login and registration forms using shadcn/ui components, auth mutations, validation display, and success redirects.
+- [X] **Do:** Build login and registration forms using shadcn/ui components, auth mutations, validation display, and success redirects.
 - **TDD suitable:** yes
 - **Blocked by:** F6
 - **Plan mode:** medium

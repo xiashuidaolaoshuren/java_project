@@ -60,7 +60,9 @@ describe('App auth routing', () => {
     renderApp('/dashboard')
 
     await waitFor(() => {
-      expect(screen.getByText('Login placeholder')).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /sign in/i }),
+      ).toBeInTheDocument()
     })
     expect(screen.queryByText('Dashboard placeholder')).not.toBeInTheDocument()
   })
@@ -77,6 +79,8 @@ describe('App auth routing', () => {
     await waitFor(() => {
       expect(screen.getByText('Dashboard placeholder')).toBeInTheDocument()
     })
-    expect(screen.queryByText('Login placeholder')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /sign in/i }),
+    ).not.toBeInTheDocument()
   })
 })

@@ -1,5 +1,9 @@
 import { apiRequest, ApiError } from '@/lib/api'
-import type { UserResponse } from '@/types/api'
+import type {
+  LoginRequest,
+  RegisterRequest,
+  UserResponse,
+} from '@/types/api'
 
 export async function getCurrentUser(): Promise<UserResponse | null> {
   try {
@@ -10,4 +14,20 @@ export async function getCurrentUser(): Promise<UserResponse | null> {
     }
     throw error
   }
+}
+
+export async function login(request: LoginRequest): Promise<UserResponse> {
+  return apiRequest<UserResponse>('/api/auth/login', {
+    method: 'POST',
+    body: request,
+  })
+}
+
+export async function register(
+  request: RegisterRequest,
+): Promise<UserResponse> {
+  return apiRequest<UserResponse>('/api/auth/register', {
+    method: 'POST',
+    body: request,
+  })
 }

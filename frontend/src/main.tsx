@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
+import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { queryClient } from '@/lib/queryClient'
 
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <TooltipProvider>
           <BrowserRouter>
             <App />
+            <Toaster />
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
