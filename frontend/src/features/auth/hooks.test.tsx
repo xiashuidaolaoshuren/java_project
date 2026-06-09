@@ -10,6 +10,7 @@ import {
   currentUserQueryKey,
   useCurrentUser,
   useLogin,
+  useLogout,
   useRegister,
 } from '@/features/auth/hooks'
 
@@ -17,13 +18,15 @@ vi.mock('@/features/auth/api', () => ({
   getCurrentUser: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
+  logout: vi.fn(),
 }))
 
-import { getCurrentUser, login, register } from '@/features/auth/api'
+import { getCurrentUser, login, logout, register } from '@/features/auth/api'
 
 const mockedGetCurrentUser = vi.mocked(getCurrentUser)
 const mockedLogin = vi.mocked(login)
 const mockedRegister = vi.mocked(register)
+const mockedLogout = vi.mocked(logout)
 
 function createWrapper(queryClient?: QueryClient) {
   const client =
@@ -197,5 +200,50 @@ describe('useRegister', () => {
     })
     expect(setQueryDataSpy).toHaveBeenCalledWith(currentUserQueryKey, user)
     expect(result.current.location.pathname).toBe('/dashboard')
+  })
+})
+
+describe('useLogout', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('clears auth cache and navigates to /login on success', async () => {
+    mockedLogout.mockResolvedValue(undefined)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const setQueryDataSpy = vi.spyOn(queryClient, 'setQueryData')
+    const clearSpy = vi.spyOn(queryClient, 'clear')
+
+    const { result } = renderHook(
+      () => ({
+        logout: useLogout(),
+        location: useLocation(),
+      }),
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              {children}
+              <LocationDisplay />
+            </MemoryRouter>
+          </QueryClientProvider>
+        ),
+      },
+    )
+
+    result.current.logout.mutate()
+
+    await waitFor(() => expect(result.current.logout.isSuccess).toBe(true))
+
+    expect(mockedLogout).toHaveBeenCalled()
+    expect(setQueryDataSpy).toHaveBeenCalledWith(currentUserQueryKey, null)
+    expect(clearSpy).toHaveBeenCalled()
+    expect(result.current.location.pathname).toBe('/login')
   })
 })

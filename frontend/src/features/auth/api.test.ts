@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api'
 import type { UserResponse } from '@/types/api'
 
-import { getCurrentUser, login, register } from '@/features/auth/api'
+import { getCurrentUser, login, logout, register } from '@/features/auth/api'
 
 describe('getCurrentUser', () => {
   afterEach(() => {
@@ -190,6 +190,53 @@ describe('register', () => {
       status: 400,
       message: 'Validation failed',
       details: { username: ['Username already taken'] },
+    })
+  })
+})
+
+describe('logout', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('succeeds on 204 No Content', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(logout()).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/logout'),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }),
+    )
+  })
+
+  it('rethrows ApiError on non-2xx responses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 500,
+            message: 'Server error',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    )
+
+    await expect(logout()).rejects.toMatchObject({
+      status: 500,
+      message: 'Server error',
     })
   })
 })

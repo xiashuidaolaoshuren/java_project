@@ -5,11 +5,13 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useCurrentUser, useLogout } from '@/features/auth/hooks'
 import {
   Sidebar,
   SidebarContent,
@@ -68,7 +70,7 @@ export function AppLayout() {
         <SidebarFooter className="border-t border-sidebar-border p-2">
           <div className="flex items-center justify-between gap-2 px-2 py-1">
             <ThemeToggle />
-            <UserMenuPlaceholder />
+            <UserMenu />
           </div>
         </SidebarFooter>
       </Sidebar>
@@ -85,7 +87,10 @@ export function AppLayout() {
   )
 }
 
-function UserMenuPlaceholder() {
+function UserMenu() {
+  const { user } = useCurrentUser()
+  const { mutate, isPending } = useLogout()
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -95,9 +100,16 @@ function UserMenuPlaceholder() {
         <UserIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>user@example.com</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{user?.email ?? 'Account'}</DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Logout (F8)</DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={isPending}
+          onClick={() => mutate()}
+        >
+          Logout
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

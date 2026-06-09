@@ -31,3 +31,9 @@ export async function register(
     body: request,
   })
 }
+
+export async function logout(): Promise<void> {
+  await apiRequest<void>('/api/auth/logout', {
+    method: 'POST',
+  })
+}

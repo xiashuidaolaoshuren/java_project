@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import type { UserResponse } from '@/types/api'
 
 vi.mock('@/features/auth/api', () => ({
   getCurrentUser: vi.fn(),
+  logout: vi.fn(),
 }))
 
 import { getCurrentUser } from '@/features/auth/api'
@@ -82,5 +84,61 @@ describe('App auth routing', () => {
     expect(
       screen.queryByRole('button', { name: /sign in/i }),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows loading session while session is restored on protected route refresh', async () => {
+    let resolveUser!: (value: UserResponse | null) => void
+    mockedGetCurrentUser.mockReturnValue(
+      new Promise<UserResponse | null>((resolve) => {
+        resolveUser = resolve
+      }),
+    )
+
+    renderApp('/dashboard')
+
+    expect(screen.getByRole('status')).toHaveTextContent(/loading session/i)
+    expect(screen.queryByText('Dashboard placeholder')).not.toBeInTheDocument()
+
+    resolveUser({
+      id: 1,
+      email: 'user@example.com',
+      username: 'user',
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard placeholder')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('does not render authenticated shell controls after session is absent', async () => {
+    mockedGetCurrentUser.mockResolvedValue(null)
+
+    renderApp('/dashboard')
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /sign in/i }),
+      ).toBeInTheDocument()
+    })
+    expect(
+      screen.queryByRole('button', { name: /user menu/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders authenticated shell with user menu when session is valid', async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      username: 'user',
+    })
+
+    renderApp('/dashboard')
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /user menu/i }),
+      ).toBeInTheDocument()
+    })
   })
 })

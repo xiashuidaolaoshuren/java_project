@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 
-import { getCurrentUser, login, register } from '@/features/auth/api'
+import { getCurrentUser, login, logout, register } from '@/features/auth/api'
 import type { LoginRequest, RegisterRequest } from '@/types/api'
 
 export const currentUserQueryKey = ['auth', 'me'] as const
@@ -41,6 +41,20 @@ export function useRegister() {
     onSuccess: (user) => {
       queryClient.setQueryData(currentUserQueryKey, user)
       navigate('/dashboard')
+    },
+  })
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: () => logout(),
+    onSuccess: () => {
+      queryClient.setQueryData(currentUserQueryKey, null)
+      queryClient.clear()
+      navigate('/login')
     },
   })
 }
