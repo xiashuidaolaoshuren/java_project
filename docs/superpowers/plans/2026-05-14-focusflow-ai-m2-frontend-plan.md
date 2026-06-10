@@ -171,7 +171,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F8 - Build Logout And Session Refresh Behavior
 
-- [ ] **Do:** Add logout action, query invalidation, and refresh-safe authenticated shell behavior.
+- [X] **Do:** Add logout action, query invalidation, and refresh-safe authenticated shell behavior.
 - **TDD suitable:** yes
 - **Blocked by:** F7
 - **Plan mode:** medium

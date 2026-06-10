@@ -13,9 +13,15 @@ vi.mock('@/features/auth/api', () => ({
   logout: vi.fn(),
 }))
 
+vi.mock('@/features/tasks/api', () => ({
+  listTasks: vi.fn(),
+}))
+
 import { getCurrentUser } from '@/features/auth/api'
+import { listTasks } from '@/features/tasks/api'
 
 const mockedGetCurrentUser = vi.mocked(getCurrentUser)
+const mockedListTasks = vi.mocked(listTasks)
 
 function renderApp(initialPath: string) {
   const queryClient = new QueryClient({
@@ -56,6 +62,10 @@ describe('App auth routing', () => {
     vi.clearAllMocks()
   })
 
+  beforeEach(() => {
+    mockedListTasks.mockResolvedValue([])
+  })
+
   it('redirects unauthenticated users away from protected routes', async () => {
     mockedGetCurrentUser.mockResolvedValue(null)
 
@@ -66,7 +76,7 @@ describe('App auth routing', () => {
         screen.getByRole('button', { name: /sign in/i }),
       ).toBeInTheDocument()
     })
-    expect(screen.queryByText('Dashboard placeholder')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^tasks$/i })).not.toBeInTheDocument()
   })
 
   it('allows authenticated users to access protected routes', async () => {
@@ -79,7 +89,8 @@ describe('App auth routing', () => {
     renderApp('/dashboard')
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard placeholder')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /^tasks$/i })).toBeInTheDocument()
+      expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
     })
     expect(
       screen.queryByRole('button', { name: /sign in/i }),
@@ -97,7 +108,7 @@ describe('App auth routing', () => {
     renderApp('/dashboard')
 
     expect(screen.getByRole('status')).toHaveTextContent(/loading session/i)
-    expect(screen.queryByText('Dashboard placeholder')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^tasks$/i })).not.toBeInTheDocument()
 
     resolveUser({
       id: 1,
@@ -106,9 +117,10 @@ describe('App auth routing', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard placeholder')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /^tasks$/i })).toBeInTheDocument()
+      expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
     })
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByText(/loading session/i)).not.toBeInTheDocument()
   })
 
   it('does not render authenticated shell controls after session is absent', async () => {
