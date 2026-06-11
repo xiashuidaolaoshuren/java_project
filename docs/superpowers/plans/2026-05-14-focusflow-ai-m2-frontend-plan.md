@@ -187,7 +187,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F10 - Build Task Create Form
 
-- [ ] **Do:** Add task creation UI and mutation with query invalidation after successful create.
+- [X] **Do:** Add task creation UI and mutation with query invalidation after successful create.
 - **TDD suitable:** yes
 - **Blocked by:** F9
 - **Plan mode:** medium

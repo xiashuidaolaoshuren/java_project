@@ -65,7 +65,7 @@ function TaskListEmpty() {
       <div className="space-y-1">
         <p className="font-medium">No tasks yet</p>
         <p className="text-sm text-muted-foreground">
-          Create your first one in a future update.
+          Click New Task to create your first one.
         </p>
       </div>
     </div>

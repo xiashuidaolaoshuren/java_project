@@ -66,7 +66,7 @@ describe('TaskList', () => {
 
     expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/create your first one in a future update/i),
+      screen.getByText(/click new task to create your first one/i),
     ).toBeInTheDocument()
   })
 

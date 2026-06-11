@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { TaskResponse } from '@/types/api'
 
-import { listTasks } from '@/features/tasks/api'
+import { createTask, listTasks } from '@/features/tasks/api'
 
 describe('listTasks', () => {
   afterEach(() => {
@@ -77,6 +77,103 @@ describe('listTasks', () => {
     )
 
     await expect(listTasks()).rejects.toMatchObject({
+      status: 500,
+      message: 'Server error',
+    })
+  })
+})
+
+describe('createTask', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('creates a task on success (201)', async () => {
+    const created: TaskResponse = {
+      id: 3,
+      title: 'Write tests',
+      description: 'TDD coverage',
+      priority: 'HIGH',
+      status: 'OPEN',
+      dueDate: '2026-06-01',
+      estimatedMinutes: 45,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(created), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      createTask({
+        title: 'Write tests',
+        description: 'TDD coverage',
+        priority: 'HIGH',
+        dueDate: '2026-06-01',
+        estimatedMinutes: 45,
+      }),
+    ).resolves.toEqual(created)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/tasks'),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({
+          title: 'Write tests',
+          description: 'TDD coverage',
+          priority: 'HIGH',
+          dueDate: '2026-06-01',
+          estimatedMinutes: 45,
+        }),
+      }),
+    )
+  })
+
+  it('rethrows ApiError on validation failure (400)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 400,
+            message: 'Validation failed',
+            details: { title: ['must not be blank'] },
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    )
+
+    await expect(createTask({ title: '' })).rejects.toMatchObject({
+      status: 400,
+      message: 'Validation failed',
+      details: { title: ['must not be blank'] },
+    })
+  })
+
+  it('rethrows ApiError on server failure (500)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 500,
+            message: 'Server error',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    )
+
+    await expect(createTask({ title: 'Write tests' })).rejects.toMatchObject({
       status: 500,
       message: 'Server error',
     })

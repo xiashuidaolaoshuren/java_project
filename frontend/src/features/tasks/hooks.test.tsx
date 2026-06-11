@@ -6,26 +6,31 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api'
 import type { TaskResponse } from '@/types/api'
 
-import { tasksQueryKey, useTasks } from '@/features/tasks/hooks'
+import { tasksQueryKey, useCreateTask, useTasks } from '@/features/tasks/hooks'
 
 vi.mock('@/features/tasks/api', () => ({
   listTasks: vi.fn(),
+  createTask: vi.fn(),
 }))
 
-import { listTasks } from '@/features/tasks/api'
+import { createTask, listTasks } from '@/features/tasks/api'
 
 const mockedListTasks = vi.mocked(listTasks)
+const mockedCreateTask = vi.mocked(createTask)
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-    },
-  })
+function createWrapper(queryClient?: QueryClient) {
+  const client =
+    queryClient ??
+    new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
 
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
     )
   }
 }
@@ -91,6 +96,58 @@ describe('useTasks', () => {
     expect(result.current.error).toMatchObject({
       status: 500,
       message: 'Server error',
+    })
+  })
+})
+
+describe('useCreateTask', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls createTask and invalidates the task list on success', async () => {
+    const created: TaskResponse = {
+      id: 3,
+      title: 'Write tests',
+      description: 'TDD coverage',
+      priority: 'HIGH',
+      status: 'OPEN',
+      dueDate: '2026-06-01',
+      estimatedMinutes: 45,
+    }
+    mockedCreateTask.mockResolvedValue(created)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useCreateTask(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate({
+      title: 'Write tests',
+      description: 'TDD coverage',
+      priority: 'HIGH',
+      dueDate: '2026-06-01',
+      estimatedMinutes: 45,
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedCreateTask).toHaveBeenCalledWith({
+      title: 'Write tests',
+      description: 'TDD coverage',
+      priority: 'HIGH',
+      dueDate: '2026-06-01',
+      estimatedMinutes: 45,
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: tasksQueryKey,
     })
   })
 })
