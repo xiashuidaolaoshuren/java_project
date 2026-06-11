@@ -179,7 +179,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F9 - Build Task Read View
 
-- [ ] **Do:** Add task API calls, task query hook, dashboard task list, loading state, error state, and empty state.
+- [X] **Do:** Add task API calls, task query hook, dashboard task list, loading state, error state, and empty state.
 - **TDD suitable:** yes
 - **Blocked by:** F8
 - **Plan mode:** medium
