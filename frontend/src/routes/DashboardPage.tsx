@@ -17,9 +17,35 @@ import {
 } from '@/components/ui/sheet'
 import { TaskForm } from '@/features/tasks/TaskForm'
 import { TaskList } from '@/features/tasks/TaskList'
+import type { TaskResponse } from '@/types/api'
 
 export function DashboardPage() {
-  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false)
+  const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<TaskResponse | null>(null)
+
+  function openCreateSheet() {
+    setEditingTask(null)
+    setIsTaskSheetOpen(true)
+  }
+
+  function openEditSheet(task: TaskResponse) {
+    setEditingTask(task)
+    setIsTaskSheetOpen(true)
+  }
+
+  function closeTaskSheet() {
+    setIsTaskSheetOpen(false)
+    setEditingTask(null)
+  }
+
+  function handleSheetOpenChange(open: boolean) {
+    setIsTaskSheetOpen(open)
+    if (!open) {
+      setEditingTask(null)
+    }
+  }
+
+  const isEditMode = editingTask != null
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -31,22 +57,28 @@ export function DashboardPage() {
               Review your tasks and prepare for daily planning.
             </p>
           </div>
-          <Button type="button" onClick={() => setIsCreateSheetOpen(true)}>
+          <Button type="button" onClick={openCreateSheet}>
             New Task
           </Button>
         </div>
-        <TaskList />
+        <TaskList onEditTask={openEditSheet} />
       </section>
 
-      <Sheet open={isCreateSheetOpen} onOpenChange={setIsCreateSheetOpen}>
+      <Sheet open={isTaskSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>New task</SheetTitle>
+            <SheetTitle>{isEditMode ? 'Edit task' : 'New task'}</SheetTitle>
             <SheetDescription>
-              Add a task to your list and prepare it for planning.
+              {isEditMode
+                ? 'Update task details and status.'
+                : 'Add a task to your list and prepare it for planning.'}
             </SheetDescription>
           </SheetHeader>
-          <TaskForm onSuccess={() => setIsCreateSheetOpen(false)} />
+          {isEditMode ? (
+            <TaskForm task={editingTask} onSuccess={closeTaskSheet} />
+          ) : (
+            <TaskForm onSuccess={closeTaskSheet} />
+          )}
         </SheetContent>
       </Sheet>
 

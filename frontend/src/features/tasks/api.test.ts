@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { TaskResponse } from '@/types/api'
 
-import { createTask, listTasks } from '@/features/tasks/api'
+import { createTask, deleteTask, listTasks, updateTask } from '@/features/tasks/api'
 
 describe('listTasks', () => {
   afterEach(() => {
@@ -177,5 +177,80 @@ describe('createTask', () => {
       status: 500,
       message: 'Server error',
     })
+  })
+})
+
+describe('updateTask', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('updates a task on success (200)', async () => {
+    const updated: TaskResponse = {
+      id: 1,
+      title: 'Updated title',
+      description: 'Updated description',
+      priority: 'HIGH',
+      status: 'IN_PROGRESS',
+      dueDate: '2026-06-10',
+      estimatedMinutes: 60,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(updated), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      updateTask(1, {
+        title: 'Updated title',
+        description: 'Updated description',
+        priority: 'HIGH',
+        status: 'IN_PROGRESS',
+        dueDate: '2026-06-10',
+        estimatedMinutes: 60,
+      }),
+    ).resolves.toEqual(updated)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/tasks/1'),
+      expect.objectContaining({
+        method: 'PUT',
+        credentials: 'include',
+        body: JSON.stringify({
+          title: 'Updated title',
+          description: 'Updated description',
+          priority: 'HIGH',
+          status: 'IN_PROGRESS',
+          dueDate: '2026-06-10',
+          estimatedMinutes: 60,
+        }),
+      }),
+    )
+  })
+})
+
+describe('deleteTask', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('deletes a task on success (204)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 204,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteTask(1)).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/tasks/1'),
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+      }),
+    )
   })
 })

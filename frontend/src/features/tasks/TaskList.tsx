@@ -9,8 +9,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTasks } from '@/features/tasks/hooks'
-import type { TaskResponse } from '@/types/api'
+import { TaskActions } from '@/features/tasks/TaskActions'
+import { useDeleteTask, useTasks, useUpdateTask } from '@/features/tasks/hooks'
+import type { TaskResponse, TaskStatus, UpdateTaskRequest } from '@/types/api'
 
 function formatDueDate(dueDate: string | null): string {
   return dueDate ?? 'No due date'
@@ -20,17 +21,54 @@ function formatEstimatedMinutes(minutes: number | null): string {
   return minutes != null ? `${minutes} min` : 'No estimate'
 }
 
-function TaskRow({ task }: { task: TaskResponse }) {
+function toUpdateRequest(
+  task: TaskResponse,
+  overrides: Partial<UpdateTaskRequest> = {},
+): UpdateTaskRequest {
+  return {
+    title: task.title,
+    description: task.description,
+    priority: task.priority,
+    status: task.status,
+    dueDate: task.dueDate,
+    estimatedMinutes: task.estimatedMinutes,
+    ...overrides,
+  }
+}
+
+type TaskRowProps = {
+  task: TaskResponse
+  onEditTask: (task: TaskResponse) => void
+  onStatusChange: (task: TaskResponse, status: TaskStatus) => void
+  onDelete: (task: TaskResponse) => void
+  isUpdating: boolean
+  isDeleting: boolean
+}
+
+function TaskRow({
+  task,
+  onEditTask,
+  onStatusChange,
+  onDelete,
+  isUpdating,
+  isDeleting,
+}: TaskRowProps) {
   return (
     <Card size="sm">
       <CardContent className="flex flex-col gap-2 py-3">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-medium">{task.title}</h3>
-          <span className="text-xs font-medium text-muted-foreground">
-            {task.priority}
-          </span>
+          <TaskActions
+            task={task}
+            onEdit={onEditTask}
+            onStatusChange={onStatusChange}
+            onDelete={onDelete}
+            isUpdating={isUpdating}
+            isDeleting={isDeleting}
+          />
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span>{task.priority}</span>
           <span>{task.status}</span>
           <span>{formatDueDate(task.dueDate)}</span>
           <span>{formatEstimatedMinutes(task.estimatedMinutes)}</span>
@@ -72,8 +110,25 @@ function TaskListEmpty() {
   )
 }
 
-export function TaskList() {
+type TaskListProps = {
+  onEditTask?: (task: TaskResponse) => void
+}
+
+export function TaskList({ onEditTask = () => undefined }: TaskListProps) {
   const { isPending, isError, isEmpty, tasks, error, refetch } = useTasks()
+  const { mutate: updateTask, isPending: isUpdating } = useUpdateTask()
+  const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask()
+
+  function handleStatusChange(task: TaskResponse, status: TaskStatus) {
+    updateTask({
+      id: task.id,
+      request: toUpdateRequest(task, { status }),
+    })
+  }
+
+  function handleDelete(task: TaskResponse) {
+    deleteTask(task.id)
+  }
 
   if (isPending) {
     return <TaskListSkeleton />
@@ -102,7 +157,15 @@ export function TaskList() {
   return (
     <div className="flex flex-col gap-3">
       {tasks.map((task) => (
-        <TaskRow key={task.id} task={task} />
+        <TaskRow
+          key={task.id}
+          task={task}
+          onEditTask={onEditTask}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+          isUpdating={isUpdating}
+          isDeleting={isDeleting}
+        />
       ))}
     </div>
   )

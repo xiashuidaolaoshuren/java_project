@@ -6,17 +6,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api'
 import type { TaskResponse } from '@/types/api'
 
-import { tasksQueryKey, useCreateTask, useTasks } from '@/features/tasks/hooks'
+import { tasksQueryKey, useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '@/features/tasks/hooks'
 
 vi.mock('@/features/tasks/api', () => ({
   listTasks: vi.fn(),
   createTask: vi.fn(),
+  updateTask: vi.fn(),
+  deleteTask: vi.fn(),
 }))
 
-import { createTask, listTasks } from '@/features/tasks/api'
+import { createTask, deleteTask, listTasks, updateTask } from '@/features/tasks/api'
 
 const mockedListTasks = vi.mocked(listTasks)
 const mockedCreateTask = vi.mocked(createTask)
+const mockedUpdateTask = vi.mocked(updateTask)
+const mockedDeleteTask = vi.mocked(deleteTask)
 
 function createWrapper(queryClient?: QueryClient) {
   const client =
@@ -146,6 +150,94 @@ describe('useCreateTask', () => {
       dueDate: '2026-06-01',
       estimatedMinutes: 45,
     })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: tasksQueryKey,
+    })
+  })
+})
+
+describe('useUpdateTask', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls updateTask and invalidates the task list on success', async () => {
+    const updated: TaskResponse = {
+      id: 1,
+      title: 'Updated title',
+      description: 'Updated description',
+      priority: 'HIGH',
+      status: 'IN_PROGRESS',
+      dueDate: '2026-06-10',
+      estimatedMinutes: 60,
+    }
+    mockedUpdateTask.mockResolvedValue(updated)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useUpdateTask(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate({
+      id: 1,
+      request: {
+        title: 'Updated title',
+        description: 'Updated description',
+        priority: 'HIGH',
+        status: 'IN_PROGRESS',
+        dueDate: '2026-06-10',
+        estimatedMinutes: 60,
+      },
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedUpdateTask).toHaveBeenCalledWith(1, {
+      title: 'Updated title',
+      description: 'Updated description',
+      priority: 'HIGH',
+      status: 'IN_PROGRESS',
+      dueDate: '2026-06-10',
+      estimatedMinutes: 60,
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: tasksQueryKey,
+    })
+  })
+})
+
+describe('useDeleteTask', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls deleteTask and invalidates the task list on success', async () => {
+    mockedDeleteTask.mockResolvedValue(undefined)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useDeleteTask(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate(1)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedDeleteTask).toHaveBeenCalledWith(1)
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: tasksQueryKey,
     })

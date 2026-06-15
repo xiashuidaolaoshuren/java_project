@@ -10,11 +10,16 @@ import type { UserResponse } from '@/types/api'
 
 vi.mock('@/features/auth/api', () => ({
   getCurrentUser: vi.fn(),
+  login: vi.fn(),
+  register: vi.fn(),
   logout: vi.fn(),
 }))
 
 vi.mock('@/features/tasks/api', () => ({
   listTasks: vi.fn(),
+  createTask: vi.fn(),
+  updateTask: vi.fn(),
+  deleteTask: vi.fn(),
 }))
 
 import { getCurrentUser } from '@/features/auth/api'

@@ -4,9 +4,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCreateTask } from '@/features/tasks/hooks'
+import { useCreateTask, useUpdateTask } from '@/features/tasks/hooks'
 import { ApiError } from '@/lib/api'
-import type { TaskPriority } from '@/types/api'
+import type { TaskPriority, TaskResponse, TaskStatus } from '@/types/api'
 
 function getFieldError(
   error: Error | null,
@@ -20,31 +20,53 @@ function getFieldError(
 
 type TaskFormProps = {
   onSuccess?: () => void
+  task?: TaskResponse
 }
 
-export function TaskForm({ onSuccess }: TaskFormProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState<TaskPriority>('MEDIUM')
-  const [dueDate, setDueDate] = useState('')
-  const [estimatedMinutes, setEstimatedMinutes] = useState('')
-  const { mutate, isPending, isError, error } = useCreateTask()
+export function TaskForm({ onSuccess, task }: TaskFormProps) {
+  const isEditMode = task != null
+  const [title, setTitle] = useState(task?.title ?? '')
+  const [description, setDescription] = useState(task?.description ?? '')
+  const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? 'MEDIUM')
+  const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'OPEN')
+  const [dueDate, setDueDate] = useState(task?.dueDate ?? '')
+  const [estimatedMinutes, setEstimatedMinutes] = useState(
+    task?.estimatedMinutes != null ? String(task.estimatedMinutes) : '',
+  )
+  const createMutation = useCreateTask()
+  const updateMutation = useUpdateTask()
+  const isPending = isEditMode ? updateMutation.isPending : createMutation.isPending
+  const isError = isEditMode ? updateMutation.isError : createMutation.isError
+  const error = isEditMode ? updateMutation.error : createMutation.error
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    mutate(
-      {
-        title,
-        description: description || null,
-        priority,
-        dueDate: dueDate || null,
-        estimatedMinutes:
-          estimatedMinutes.trim() === ''
-            ? null
-            : Number.parseInt(estimatedMinutes, 10),
-      },
-      { onSuccess },
-    )
+    const payload = {
+      title,
+      description: description || null,
+      priority,
+      dueDate: dueDate || null,
+      estimatedMinutes:
+        estimatedMinutes.trim() === ''
+          ? null
+          : Number.parseInt(estimatedMinutes, 10),
+    }
+
+    if (isEditMode && task) {
+      updateMutation.mutate(
+        {
+          id: task.id,
+          request: {
+            ...payload,
+            status,
+          },
+        },
+        { onSuccess },
+      )
+      return
+    }
+
+    createMutation.mutate(payload, { onSuccess })
   }
 
   return (
@@ -99,6 +121,23 @@ export function TaskForm({ onSuccess }: TaskFormProps) {
           <option value="HIGH">High</option>
         </select>
       </div>
+      {isEditMode ? (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="status">Status</Label>
+          <select
+            id="status"
+            name="status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value as TaskStatus)}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <option value="OPEN">Open</option>
+            <option value="IN_PROGRESS">In progress</option>
+            <option value="DONE">Done</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="dueDate">Due date</Label>
         <Input
@@ -133,7 +172,7 @@ export function TaskForm({ onSuccess }: TaskFormProps) {
         ) : null}
       </div>
       <Button type="submit" disabled={isPending}>
-        Create task
+        {isEditMode ? 'Save task' : 'Create task'}
       </Button>
     </form>
   )

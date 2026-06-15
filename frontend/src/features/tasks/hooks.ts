@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { createTask, listTasks } from '@/features/tasks/api'
-import type { CreateTaskRequest } from '@/types/api'
+import { createTask, deleteTask, listTasks, updateTask } from '@/features/tasks/api'
+import type { CreateTaskRequest, UpdateTaskRequest } from '@/types/api'
 
 export const tasksQueryKey = ['tasks', 'list'] as const
 
@@ -23,6 +23,34 @@ export function useCreateTask() {
 
   return useMutation({
     mutationFn: (request: CreateTaskRequest) => createTask(request),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
+    },
+  })
+}
+
+export function useUpdateTask() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      request,
+    }: {
+      id: number
+      request: UpdateTaskRequest
+    }) => updateTask(id, request),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
+    },
+  })
+}
+
+export function useDeleteTask() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => deleteTask(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
     },
