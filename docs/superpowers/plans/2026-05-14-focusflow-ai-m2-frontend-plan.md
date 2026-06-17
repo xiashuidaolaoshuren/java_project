@@ -195,7 +195,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F11 - Build Task Edit, Status, And Delete UI
 
-- [ ] **Do:** Add edit, status update, and delete actions with confirmation or safe UI feedback where appropriate.
+- [X] **Do:** Add edit, status update, and delete actions with confirmation or safe UI feedback where appropriate.
 - **TDD suitable:** yes
 - **Blocked by:** F10
 - **Plan mode:** medium
@@ -203,7 +203,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F12 - Build Daily Plan Generation UI
 
-- [ ] **Do:** Add available focus time input, generate action, loading state, provider error display, and generated-plan rendering.
+- [X] **Do:** Add available focus time input, generate action, loading state, provider error display, and generated-plan rendering.
 - **TDD suitable:** yes
 - **Blocked by:** F11
 - **Plan mode:** medium

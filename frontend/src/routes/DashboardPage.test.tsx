@@ -11,12 +11,27 @@ vi.mock('@/features/tasks/hooks', () => ({
   useDeleteTask: vi.fn(),
 }))
 
+vi.mock('@/features/plans/hooks', () => ({
+  useTodayPlan: vi.fn(),
+  useGeneratePlan: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+  },
+}))
+
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '@/features/tasks/hooks'
+import { useGeneratePlan, useTodayPlan } from '@/features/plans/hooks'
+import type { DailyPlanResponse } from '@/types/api'
 
 const mockedUseTasks = vi.mocked(useTasks)
 const mockedUseCreateTask = vi.mocked(useCreateTask)
 const mockedUseUpdateTask = vi.mocked(useUpdateTask)
 const mockedUseDeleteTask = vi.mocked(useDeleteTask)
+const mockedUseTodayPlan = vi.mocked(useTodayPlan)
+const mockedUseGeneratePlan = vi.mocked(useGeneratePlan)
 
 const sampleTask = {
   id: 1,
@@ -28,6 +43,26 @@ const sampleTask = {
   estimatedMinutes: 60,
 }
 
+const samplePlan: DailyPlanResponse = {
+  id: 1,
+  planDate: '2026-06-15',
+  createdAt: '2026-06-15T09:00:00Z',
+  items: [
+    {
+      position: 1,
+      task: {
+        id: 10,
+        title: 'Write tests',
+        description: null,
+        priority: 'HIGH',
+        status: 'OPEN',
+        dueDate: '2026-06-15',
+        estimatedMinutes: 45,
+      },
+    },
+  ],
+}
+
 function renderDashboard() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -36,11 +71,21 @@ function renderDashboard() {
     },
   })
 
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <DashboardPage />
     </QueryClientProvider>,
   )
+
+  return {
+    ...view,
+    rerenderDashboard: () =>
+      view.rerender(
+        <QueryClientProvider client={queryClient}>
+          <DashboardPage />
+        </QueryClientProvider>,
+      ),
+  }
 }
 
 function mockEmptyTasks() {
@@ -80,10 +125,39 @@ function mockMutations() {
   } as unknown as ReturnType<typeof useDeleteTask>)
 }
 
+function mockNoPlan() {
+  mockedUseTodayPlan.mockReturnValue({
+    isPending: false,
+    plan: null,
+    hasPlan: false,
+  } as unknown as ReturnType<typeof useTodayPlan>)
+  mockedUseGeneratePlan.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useGeneratePlan>)
+}
+
+function mockExistingPlan() {
+  mockedUseTodayPlan.mockReturnValue({
+    isPending: false,
+    plan: samplePlan,
+    hasPlan: true,
+  } as unknown as ReturnType<typeof useTodayPlan>)
+  mockedUseGeneratePlan.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useGeneratePlan>)
+}
+
 describe('DashboardPage', () => {
   it('shows actionable empty-state CTA copy', () => {
     mockEmptyTasks()
     mockMutations()
+    mockNoPlan()
 
     renderDashboard()
 
@@ -95,6 +169,7 @@ describe('DashboardPage', () => {
   it('opens the create-task sheet when New Task is clicked', async () => {
     mockEmptyTasks()
     mockMutations()
+    mockNoPlan()
 
     renderDashboard()
 
@@ -110,6 +185,7 @@ describe('DashboardPage', () => {
 
   it('closes the sheet after a successful create', async () => {
     mockEmptyTasks()
+    mockNoPlan()
     const mutate = vi.fn(
       (_payload: unknown, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.()
@@ -152,6 +228,7 @@ describe('DashboardPage', () => {
   it('opens edit sheet with selected task when edit action is clicked', async () => {
     mockLoadedTasks()
     mockMutations()
+    mockNoPlan()
 
     renderDashboard()
 
@@ -171,6 +248,7 @@ describe('DashboardPage', () => {
     const updateMutate = vi.fn()
     mockLoadedTasks()
     mockMutations()
+    mockNoPlan()
     mockedUseUpdateTask.mockReturnValue({
       mutate: updateMutate,
       isPending: false,
@@ -199,6 +277,7 @@ describe('DashboardPage', () => {
     const deleteMutate = vi.fn()
     mockLoadedTasks()
     mockMutations()
+    mockNoPlan()
     mockedUseDeleteTask.mockReturnValue({
       mutate: deleteMutate,
       isPending: false,
@@ -212,5 +291,64 @@ describe('DashboardPage', () => {
     expect(deleteMutate).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /^delete task$/i }))
     expect(deleteMutate).toHaveBeenCalledWith(1)
+  })
+
+  it('displays existing today plan on page load', () => {
+    mockEmptyTasks()
+    mockMutations()
+    mockExistingPlan()
+
+    renderDashboard()
+
+    expect(screen.getByText('Write tests')).toBeInTheDocument()
+    expect(screen.getByText('45 min')).toBeInTheDocument()
+  })
+
+  it('updates displayed plan after successful generate', () => {
+    mockEmptyTasks()
+    mockMutations()
+    mockedUseTodayPlan.mockReturnValue({
+      isPending: false,
+      plan: null,
+      hasPlan: false,
+    } as unknown as ReturnType<typeof useTodayPlan>)
+
+    const mutate = vi.fn(
+      (_payload: unknown, options?: { onSuccess?: () => void }) => {
+        mockedUseTodayPlan.mockReturnValue({
+          isPending: false,
+          plan: samplePlan,
+          hasPlan: true,
+        } as unknown as ReturnType<typeof useTodayPlan>)
+        options?.onSuccess?.()
+      },
+    )
+    mockedUseGeneratePlan.mockReturnValue({
+      mutate,
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useGeneratePlan>)
+
+    const { rerenderDashboard } = renderDashboard()
+
+    expect(screen.getByText(/no plan for today yet/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/available focus time/i), {
+      target: { value: '90' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: /generate today's plan/i }),
+    )
+
+    rerenderDashboard()
+
+    expect(screen.getByText('Write tests')).toBeInTheDocument()
+    expect(mutate).toHaveBeenCalledWith(
+      { availableMinutes: 90 },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+      }),
+    )
   })
 })

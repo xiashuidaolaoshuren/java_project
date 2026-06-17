@@ -2,19 +2,15 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { DailyPlanView } from '@/features/plans/DailyPlanView'
+import { GeneratePlanCard } from '@/features/plans/GeneratePlanCard'
+import { useTodayPlan } from '@/features/plans/hooks'
 import { TaskForm } from '@/features/tasks/TaskForm'
 import { TaskList } from '@/features/tasks/TaskList'
 import type { TaskResponse } from '@/types/api'
@@ -22,6 +18,7 @@ import type { TaskResponse } from '@/types/api'
 export function DashboardPage() {
   const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskResponse | null>(null)
+  const { plan } = useTodayPlan()
 
   function openCreateSheet() {
     setEditingTask(null)
@@ -82,21 +79,9 @@ export function DashboardPage() {
         </SheetContent>
       </Sheet>
 
-      <aside>
-        <Card>
-          <CardHeader>
-            <CardTitle>Plan generation</CardTitle>
-            <CardDescription>
-              Daily plan generation arrives in a later milestone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Generate today&apos;s plan from your open tasks once planning is
-              available.
-            </p>
-          </CardContent>
-        </Card>
+      <aside className="flex flex-col gap-4">
+        <GeneratePlanCard />
+        <DailyPlanView plan={plan} />
       </aside>
     </div>
   )
