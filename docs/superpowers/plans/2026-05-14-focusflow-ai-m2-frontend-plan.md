@@ -219,7 +219,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F14 - Build Plan Detail Page
 
-- [ ] **Do:** Add saved plan detail query and display for one plan by id.
+- [X] **Do:** Add saved plan detail query and display for one plan by id.
 - **TDD suitable:** partial - Data-fetch behavior is testable; rendering details are primarily visual.
 - **Blocked by:** F13
 - **Plan mode:** skip
