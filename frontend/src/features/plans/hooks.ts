@@ -1,10 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { generateDailyPlan, getTodayPlan, listPlans } from '@/features/plans/api'
+import { generateDailyPlan, getPlanById, getTodayPlan, listPlans } from '@/features/plans/api'
 import type { GeneratePlanRequest } from '@/types/api'
 
 export const todayPlanQueryKey = ['plans', 'today'] as const
 export const plansQueryKey = ['plans', 'list'] as const
+
+export function planDetailQueryKey(id: number) {
+  return ['plans', 'detail', id] as const
+}
+
+function isValidPlanId(id: number): boolean {
+  return Number.isInteger(id) && id > 0
+}
 
 export function useTodayPlan() {
   const query = useQuery({
@@ -29,6 +37,19 @@ export function usePlans() {
     ...query,
     plans: query.data ?? [],
     isEmpty: !query.isPending && (query.data?.length ?? 0) === 0,
+  }
+}
+
+export function usePlan(id: number) {
+  const query = useQuery({
+    queryKey: planDetailQueryKey(id),
+    queryFn: () => getPlanById(id),
+    enabled: isValidPlanId(id),
+  })
+
+  return {
+    ...query,
+    plan: query.data ?? null,
   }
 }
 

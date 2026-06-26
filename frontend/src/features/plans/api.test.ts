@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { DailyPlanResponse } from '@/types/api'
 
-import { generateDailyPlan, getTodayPlan, listPlans } from '@/features/plans/api'
+import { ApiError } from '@/lib/api'
+import {
+  generateDailyPlan,
+  getPlanById,
+  getTodayPlan,
+  listPlans,
+} from '@/features/plans/api'
 
 describe('generateDailyPlan', () => {
   afterEach(() => {
@@ -146,5 +152,70 @@ describe('listPlans', () => {
       expect.stringMatching(/\/api\/daily-plans$/),
       expect.objectContaining({ credentials: 'include' }),
     )
+  })
+})
+
+describe('getPlanById', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns a plan from GET /api/daily-plans/{id}', async () => {
+    const plan: DailyPlanResponse = {
+      id: 42,
+      planDate: '2026-06-14',
+      createdAt: '2026-06-14T09:00:00Z',
+      items: [
+        {
+          position: 1,
+          task: {
+            id: 10,
+            title: 'Write tests',
+            description: null,
+            priority: 'HIGH',
+            status: 'OPEN',
+            dueDate: '2026-06-14',
+            estimatedMinutes: 45,
+          },
+        },
+      ],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(plan), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getPlanById(42)).resolves.toEqual(plan)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/daily-plans/42'),
+      expect.objectContaining({ credentials: 'include' }),
+    )
+  })
+
+  it('rethrows ApiError with status 404 when plan is not found', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 404,
+            message: 'Plan not found',
+          }),
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    )
+
+    await expect(getPlanById(999)).rejects.toMatchObject({
+      status: 404,
+      message: 'Plan not found',
+    })
+    await expect(getPlanById(999)).rejects.toBeInstanceOf(ApiError)
   })
 })

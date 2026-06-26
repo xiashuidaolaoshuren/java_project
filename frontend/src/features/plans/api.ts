@@ -13,6 +13,10 @@ export async function listPlans(): Promise<DailyPlanResponse[]> {
   return apiRequest<DailyPlanResponse[]>('/api/daily-plans')
 }
 
+export async function getPlanById(id: number): Promise<DailyPlanResponse> {
+  return apiRequest<DailyPlanResponse>(`/api/daily-plans/${id}`)
+}
+
 export async function getTodayPlan(): Promise<DailyPlanResponse | null> {
   const planDate = getTodayDateString()
   const plans = await apiRequest<DailyPlanResponse[]>(

@@ -8,19 +8,27 @@ import type { DailyPlanResponse } from '@/types/api'
 import {
   todayPlanQueryKey,
   useGeneratePlan,
+  usePlan,
   usePlans,
   useTodayPlan,
 } from '@/features/plans/hooks'
 
 vi.mock('@/features/plans/api', () => ({
   generateDailyPlan: vi.fn(),
+  getPlanById: vi.fn(),
   getTodayPlan: vi.fn(),
   listPlans: vi.fn(),
 }))
 
-import { generateDailyPlan, getTodayPlan, listPlans } from '@/features/plans/api'
+import {
+  generateDailyPlan,
+  getPlanById,
+  getTodayPlan,
+  listPlans,
+} from '@/features/plans/api'
 
 const mockedGenerateDailyPlan = vi.mocked(generateDailyPlan)
+const mockedGetPlanById = vi.mocked(getPlanById)
 const mockedGetTodayPlan = vi.mocked(getTodayPlan)
 const mockedListPlans = vi.mocked(listPlans)
 
@@ -166,5 +174,32 @@ describe('usePlans', () => {
 
     expect(result.current.plans).toEqual([])
     expect(result.current.isEmpty).toBe(true)
+  })
+})
+
+describe('usePlan', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('fetches plan detail by id and exposes plan', async () => {
+    mockedGetPlanById.mockResolvedValue(samplePlan)
+
+    const { result } = renderHook(() => usePlan(1), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedGetPlanById).toHaveBeenCalledWith(1)
+    expect(result.current.plan).toEqual(samplePlan)
+  })
+
+  it('does not fetch when id is invalid', () => {
+    renderHook(() => usePlan(Number.NaN), {
+      wrapper: createWrapper(),
+    })
+
+    expect(mockedGetPlanById).not.toHaveBeenCalled()
   })
 })

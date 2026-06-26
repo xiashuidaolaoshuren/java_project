@@ -211,7 +211,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F13 - Build Plan History Page
 
-- [ ] **Do:** Add saved plan list query, history route, empty state, and links to detail pages.
+- [X] **Do:** Add saved plan list query, history route, empty state, and links to detail pages.
 - **TDD suitable:** partial - Query and routing behavior are testable; most value is in UI composition/flow checks.
 - **Blocked by:** F12
 - **Plan mode:** skip

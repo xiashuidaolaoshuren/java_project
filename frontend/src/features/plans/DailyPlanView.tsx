@@ -9,15 +9,21 @@ import type { DailyPlanResponse } from '@/types/api'
 
 type DailyPlanViewProps = {
   plan: DailyPlanResponse | null
+  title?: string
+  emptyDescription?: string
 }
 
-export function DailyPlanView({ plan }: DailyPlanViewProps) {
+export function DailyPlanView({
+  plan,
+  title = "Today's plan",
+  emptyDescription = 'No plan for today yet.',
+}: DailyPlanViewProps) {
   if (plan == null) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Today&apos;s plan</CardTitle>
-          <CardDescription>No plan for today yet.</CardDescription>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{emptyDescription}</CardDescription>
         </CardHeader>
       </Card>
     )
@@ -28,7 +34,7 @@ export function DailyPlanView({ plan }: DailyPlanViewProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Today&apos;s plan</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>
           {sortedItems.length} block{sortedItems.length === 1 ? '' : 's'} scheduled
         </CardDescription>
