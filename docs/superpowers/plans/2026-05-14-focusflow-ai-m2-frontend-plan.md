@@ -92,6 +92,7 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 | `frontend/src/lib/api.ts` | Central API helper controls cookies, CSRF, error handling, and all backend calls. | high - confirm contract with Spring Security behavior from Milestone 1. |
 | `frontend/src/types/api.ts` | Type drift from backend DTOs can cause confusing integration bugs. | medium - confirm endpoint payloads after backend milestone. |
 | `frontend/src/features/auth/*` | Auth flow controls access to every protected screen. | high - confirm current-user, login, logout, and refresh behavior. |
+| `frontend/src/components/layout/AppLayout.tsx` | Shared authenticated shell; skip-link and nav changes affect every protected page. | medium - covered by F15a; guarded by existing `AppLayout.test.tsx`. |
 
 ## Workflow For Implementers
 
@@ -225,13 +226,61 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 - **Plan mode:** skip
 - **Verification:** `cd frontend; npm run build` and manual plan detail check
 
-### F15 - Frontend Polish And Accessibility Pass
+### F15a - Shared Shell And Navigation Accessibility
 
-- [ ] **Do:** Review loading states, empty states, form labels, keyboard behavior, and common shadcn composition rules.
-- **TDD suitable:** no - Mostly visual/UX refinement validated through targeted manual checks.
+- [ ] **Do:** Add skip-to-content link and verify landmarks in `AppLayout`/`PublicLayout`; audit sidebar nav, `SidebarTrigger`, `ThemeToggle`, and user menu for aria-labels, keyboard flow, and focus rings in both themes; polish `ProtectedRoute` loading state.
+- **TDD suitable:** partial - TDD slice: skip link, landmarks, and aria via RTL; manual slice: focus rings and contrast in light/dark.
+- **Blocked by:** F14
+- **Plan mode:** medium
+- **Verification:** `cd frontend; npm run build`, `cd frontend; npm test`, and manual keyboard tab-through in light/dark
+
+### F15b - Login Page Polish
+
+- [ ] **Do:** Wire `aria-invalid`/`aria-describedby` in `LoginForm`, give the error alert a title, and move focus to the alert on failed submit.
+- **TDD suitable:** partial - TDD slice: aria wiring and error alert title; manual slice: focus move on failed submit.
 - **Blocked by:** F14
 - **Plan mode:** skip
-- **Verification:** `cd frontend; npm run build` and manual smoke check across all routes
+- **Verification:** `cd frontend; npm run build`, scoped `LoginForm` tests, and manual invalid-login check
+
+### F15c - Register Page Polish
+
+- [ ] **Do:** Link field errors via `aria-describedby` and add error focus management in `RegisterForm` (already has `aria-invalid`).
+- **TDD suitable:** partial - TDD slice: `aria-describedby` wiring; manual slice: error focus management.
+- **Blocked by:** F14
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build`, scoped `RegisterForm` tests, and manual validation-error check
+
+### F15d - Dashboard Page Polish
+
+- [ ] **Do:** Render today-plan skeleton/error instead of conflating with empty (`DashboardPage` + `DailyPlanView`); surface non-502 generate failures in `GeneratePlanCard`; add CTA to `TaskList` empty state; wire `aria-describedby` in `TaskForm`; review native select vs shadcn `select`; verify focus restore on sheet close.
+- **TDD suitable:** partial - TDD slice: today-plan loading/error, generate-error alert, empty CTA; manual slice: sheet focus restore and visuals.
+- **Blocked by:** F14
+- **Plan mode:** medium
+- **Verification:** `cd frontend; npm run build`, scoped dashboard/plan/task tests, and manual dashboard check
+
+### F15e - Plan History Page Polish
+
+- [ ] **Do:** Add CTA link to `PlanHistoryList` empty state; verify skeleton/error/retry and link focus styles.
+- **TDD suitable:** partial - TDD slice: empty-state CTA and state rendering; manual slice: link focus styles.
+- **Blocked by:** F14
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build`, scoped `PlanHistoryList` tests, and manual plan history check
+
+### F15f - Plan Detail Page Polish
+
+- [ ] **Do:** Restyle back links for visible focus; verify skeleton, not-found, and retry states against the UI spec.
+- **TDD suitable:** no - Visual refinement of states already built and tested in F14.
+- **Blocked by:** F14
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build` and manual plan detail check
+
+### F15g - Cross-Route Accessibility Audit And Smoke Check
+
+- [ ] **Do:** Keyboard-only walkthrough of all five routes in both themes; verify labels, focus rings, contrast baseline, and toast/confirm behavior; run full suite.
+- **TDD suitable:** no - Manual audit checklist across routes.
+- **Blocked by:** F15a, F15b, F15c, F15d, F15e, F15f
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build`, `cd frontend; npm test`, and manual smoke check across all routes
 
 ## TDD Note For Agent Mode
 
@@ -246,3 +295,4 @@ Per subtask, obey **TDD suitable**: **`yes`** → strict **test-driven-developme
 | 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, TDD/manual slices for partial UI work, Vitest introduction in F4, updated discovery reuse note. |
 | 2026-05-31 | Linked the new frontend UI design spec (`2026-05-31-focusflow-frontend-ui-design.md`): added UI spec references, sidebar shell + theme module file-map entries, expanded UI component inventory, and an F3 sidebar follow-up note. |
 | 2026-05-31 | Added **F3b** (align app shell with UI spec) after completed F3; F4 now blocked by F3b; removed inline F3 follow-up note. |
+| 2026-08-02 | Decomposed F15 (polish/accessibility pass) into per-page subtasks F15a-F15g after component inventory (~19 components, 5 pages + shared shell); upgraded testable state/aria slices to TDD suitable: partial. |
