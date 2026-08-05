@@ -43,9 +43,14 @@ describe('ProtectedRoute', () => {
       isAuthenticated: false,
     } as ReturnType<typeof useCurrentUser>)
 
-    renderProtectedRoute()
+    const { container } = renderProtectedRoute()
 
-    expect(screen.getByRole('status')).toHaveTextContent(/loading/i)
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(/loading/i)
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    const spinner = container.querySelector('svg')
+    expect(spinner).not.toBeNull()
+    expect(spinner).toHaveAttribute('aria-hidden', 'true')
     expect(screen.queryByText('Dashboard content')).not.toBeInTheDocument()
   })
 

@@ -32,6 +32,12 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:ring-2 focus:ring-ring"
+      >
+        Skip to content
+      </a>
       <Sidebar>
         <SidebarHeader className="border-b border-sidebar-border p-4">
           <span className="text-lg font-semibold">FocusFlow</span>
@@ -79,7 +85,11 @@ export function AppLayout() {
           <SidebarTrigger />
           <span className="font-semibold">FocusFlow</span>
         </header>
-        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col p-6">
+        <div
+          id="main-content"
+          tabIndex={-1}
+          className="mx-auto flex w-full max-w-5xl flex-1 flex-col p-6"
+        >
           <Outlet />
         </div>
       </SidebarInset>

@@ -228,7 +228,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15a - Shared Shell And Navigation Accessibility
 
-- [ ] **Do:** Add skip-to-content link and verify landmarks in `AppLayout`/`PublicLayout`; audit sidebar nav, `SidebarTrigger`, `ThemeToggle`, and user menu for aria-labels, keyboard flow, and focus rings in both themes; polish `ProtectedRoute` loading state.
+- [X] **Do:** Add skip-to-content link and verify landmarks in `AppLayout`/`PublicLayout`; audit sidebar nav, `SidebarTrigger`, `ThemeToggle`, and user menu for aria-labels, keyboard flow, and focus rings in both themes; polish `ProtectedRoute` loading state.
 - **TDD suitable:** partial - TDD slice: skip link, landmarks, and aria via RTL; manual slice: focus rings and contrast in light/dark.
 - **Blocked by:** F14
 - **Plan mode:** medium

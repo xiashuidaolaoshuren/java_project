@@ -46,6 +46,67 @@ async function openUserMenu() {
   })
 }
 
+function mockAuthForLayout() {
+  mockedUseCurrentUser.mockReturnValue({
+    user: { id: 1, email: 'user@example.com', username: 'user' },
+    isAuthenticated: true,
+  } as ReturnType<typeof useCurrentUser>)
+  mockedUseLogout.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  } as unknown as ReturnType<typeof useLogout>)
+}
+
+describe('AppLayout accessibility', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    })
+    mockAuthForLayout()
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders a skip to content link targeting main content', () => {
+    renderAppLayout()
+
+    const skipLink = screen.getByRole('link', { name: /skip to (main )?content/i })
+    expect(skipLink).toHaveAttribute('href', '#main-content')
+  })
+
+  it('provides a main-content skip target', () => {
+    renderAppLayout()
+
+    expect(document.getElementById('main-content')).not.toBeNull()
+  })
+
+  it('exposes accessible names for shell controls', () => {
+    renderAppLayout()
+
+    expect(
+      screen.getByRole('button', { name: /toggle sidebar/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /switch to (dark|light) mode/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /user menu/i }),
+    ).toBeInTheDocument()
+  })
+})
+
 describe('AppLayout user menu', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'matchMedia', {

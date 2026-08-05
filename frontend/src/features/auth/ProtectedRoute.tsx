@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import { Loader2Icon } from 'lucide-react'
 
 import { useCurrentUser } from '@/features/auth/hooks'
 
@@ -7,7 +8,12 @@ export function ProtectedRoute() {
 
   if (isPending) {
     return (
-      <div className="flex min-h-svh items-center justify-center" role="status">
+      <div
+        className="flex min-h-svh flex-col items-center justify-center gap-2"
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2Icon className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
         <p className="text-sm text-muted-foreground">Loading session…</p>
       </div>
     )

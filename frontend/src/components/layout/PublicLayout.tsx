@@ -7,9 +7,9 @@ export function PublicLayout() {
         <Link to="/login" className="text-2xl font-semibold tracking-tight">
           FocusFlow
         </Link>
-        <div className="w-full">
+        <main className="w-full">
           <Outlet />
-        </div>
+        </main>
       </div>
     </div>
   )
