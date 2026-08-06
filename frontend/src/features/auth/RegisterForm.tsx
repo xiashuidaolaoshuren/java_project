@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -31,6 +31,14 @@ export function RegisterForm() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const { mutate, isPending, isError, error } = useRegister()
+  const errorAlertRef = useRef<HTMLDivElement>(null)
+  const hasRegisterError = isError && error instanceof Error
+
+  useEffect(() => {
+    if (hasRegisterError) {
+      errorAlertRef.current?.focus()
+    }
+  }, [hasRegisterError])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -47,8 +55,13 @@ export function RegisterForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="flex flex-col gap-4">
-          {isError && error instanceof Error ? (
-            <Alert variant="destructive">
+          {hasRegisterError ? (
+            <Alert
+              ref={errorAlertRef}
+              variant="destructive"
+              tabIndex={-1}
+            >
+              <AlertTitle>Registration failed</AlertTitle>
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : null}
@@ -62,10 +75,13 @@ export function RegisterForm() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               aria-invalid={Boolean(getFieldError(error, 'email'))}
+              aria-describedby={
+                getFieldError(error, 'email') ? 'email-error' : undefined
+              }
               required
             />
             {isError && getFieldError(error, 'email') ? (
-              <p className="text-sm text-destructive">
+              <p id="email-error" className="text-sm text-destructive">
                 {getFieldError(error, 'email')}
               </p>
             ) : null}
@@ -79,10 +95,13 @@ export function RegisterForm() {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               aria-invalid={Boolean(getFieldError(error, 'username'))}
+              aria-describedby={
+                getFieldError(error, 'username') ? 'username-error' : undefined
+              }
               required
             />
             {isError && getFieldError(error, 'username') ? (
-              <p className="text-sm text-destructive">
+              <p id="username-error" className="text-sm text-destructive">
                 {getFieldError(error, 'username')}
               </p>
             ) : null}
@@ -97,10 +116,13 @@ export function RegisterForm() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               aria-invalid={Boolean(getFieldError(error, 'password'))}
+              aria-describedby={
+                getFieldError(error, 'password') ? 'password-error' : undefined
+              }
               required
             />
             {isError && getFieldError(error, 'password') ? (
-              <p className="text-sm text-destructive">
+              <p id="password-error" className="text-sm text-destructive">
                 {getFieldError(error, 'password')}
               </p>
             ) : null}

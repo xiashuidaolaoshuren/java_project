@@ -244,7 +244,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15c - Register Page Polish
 
-- [ ] **Do:** Link field errors via `aria-describedby` and add error focus management in `RegisterForm` (already has `aria-invalid`).
+- [X] **Do:** Link field errors via `aria-describedby` and add error focus management in `RegisterForm` (already has `aria-invalid`).
 - **TDD suitable:** partial - TDD slice: `aria-describedby` wiring; manual slice: error focus management.
 - **Blocked by:** F14
 - **Plan mode:** skip
