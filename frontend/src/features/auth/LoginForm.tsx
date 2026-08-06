@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -19,6 +19,14 @@ export function LoginForm() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const { mutate, isPending, isError, error } = useLogin()
+  const errorAlertRef = useRef<HTMLDivElement>(null)
+  const hasLoginError = isError && error instanceof Error
+
+  useEffect(() => {
+    if (hasLoginError) {
+      errorAlertRef.current?.focus()
+    }
+  }, [hasLoginError])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,8 +43,13 @@ export function LoginForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="flex flex-col gap-4">
-          {isError && error instanceof Error ? (
-            <Alert variant="destructive">
+          {hasLoginError ? (
+            <Alert
+              ref={errorAlertRef}
+              variant="destructive"
+              tabIndex={-1}
+            >
+              <AlertTitle>Sign-in failed</AlertTitle>
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : null}
@@ -48,6 +61,7 @@ export function LoginForm() {
               autoComplete="username"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
+              aria-invalid={hasLoginError}
               required
             />
           </div>
@@ -60,6 +74,7 @@ export function LoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={hasLoginError}
               required
             />
           </div>
