@@ -236,7 +236,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15b - Login Page Polish
 
-- [ ] **Do:** Wire `aria-invalid`/`aria-describedby` in `LoginForm`, give the error alert a title, and move focus to the alert on failed submit.
+- [X] **Do:** Wire `aria-invalid`/`aria-describedby` in `LoginForm`, give the error alert a title, and move focus to the alert on failed submit.
 - **TDD suitable:** partial - TDD slice: aria wiring and error alert title; manual slice: focus move on failed submit.
 - **Blocked by:** F14
 - **Plan mode:** skip
