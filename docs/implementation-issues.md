@@ -71,3 +71,67 @@ onSuccess: (user) => {
 - `invalidateQueries` + navigate is a classic race when a route guard depends on that query.
 - Mirror patterns across related hooks (`useLogin` / `useRegister`) so one path does not silently lag behind the safer one.
 - Cover the race with a regression test: after login success, assert the current-user query is set and `isAuthenticated` is true *even if* a subsequent `/auth/me` refetch would return `null`.
+
+---
+
+## 2. First-register session never established
+
+**When:** Backend auth (register flow)  
+**Area:** `backend/src/main/java/com/focusflow/auth/AuthService.java`  
+**Symptom:** After a successful registration, the UI navigated to `/dashboard` as the new user, but every authenticated API call (`/api/tasks`, `/api/auth/me`, etc.) returned **401**. Logging out and logging in again made everything work.
+
+### What we saw
+
+1. Submit valid register form on `/register`.
+2. `POST /api/auth/register` returns `201` with the new user body.
+3. Frontend seeds the current-user cache and navigates to `/dashboard`.
+4. Dashboard data fetches fail with 401.
+5. Logout → login with the same credentials → dashboard works.
+
+### Root cause
+
+`AuthService.register()` created and saved the user, then returned a `UserResponse` — but it never authenticated the session:
+
+```java
+User saved = userRepository.save(user);
+return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername());
+```
+
+`login()` did the missing step:
+
+```java
+Authentication authentication =
+    authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+SecurityContextHolder.getContext().setAuthentication(authentication);
+```
+
+Without that, Spring Security had no authenticated `SecurityContext` / session for the new user. `SecurityConfig` requires `authenticated()` for all non-login/register routes, so subsequent requests got 401.
+
+The frontend looked logged in because it trusted the register response body and called `setQueryData` — the client and server were out of sync.
+
+### Why existing controller tests missed it
+
+`AuthControllerTest` mocks `AuthService` with `@MockBean`, so it only asserts HTTP status and JSON shape. It never exercises the real `register()` session side effect.
+
+### Fix
+
+After saving the user, authenticate with the request credentials the same way `login()` does:
+
+```java
+User saved = userRepository.save(user);
+
+Authentication authentication =
+    authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(
+            request.username(), request.password()));
+SecurityContextHolder.getContext().setAuthentication(authentication);
+
+return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername());
+```
+
+### Lesson
+
+- Returning a user body is not the same as establishing a session. Related auth paths (`register` / `login`) must both set `SecurityContext` when the product expects an immediate logged-in state.
+- Mocking the service in controller tests hides session side effects — add a service-level (or integration) test that asserts `SecurityContextHolder` after register.
+- Client-side cache seeding can mask a missing server session until the first protected API call.
