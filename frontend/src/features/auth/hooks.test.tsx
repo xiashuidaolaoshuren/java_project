@@ -99,13 +99,16 @@ describe('useLogin', () => {
     vi.clearAllMocks()
   })
 
-  it('invalidates the current user query and navigates to /dashboard on success', async () => {
+  it('sets current user query data and navigates to /dashboard on success', async () => {
     const user: UserResponse = {
       id: 1,
       email: 'user@example.com',
       username: 'user',
     }
     mockedLogin.mockResolvedValue(user)
+    // Refetch after invalidate can still return null briefly; auth must not
+    // depend on that race — login response should seed the cache immediately.
+    mockedGetCurrentUser.mockResolvedValue(null)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -113,11 +116,13 @@ describe('useLogin', () => {
         mutations: { retry: false },
       },
     })
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    queryClient.setQueryData(currentUserQueryKey, null)
+    const setQueryDataSpy = vi.spyOn(queryClient, 'setQueryData')
 
     const { result } = renderHook(
       () => ({
         login: useLogin(),
+        currentUser: useCurrentUser(),
         location: useLocation(),
       }),
       {
@@ -140,9 +145,9 @@ describe('useLogin', () => {
       username: 'user',
       password: 'password123',
     })
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: currentUserQueryKey,
-    })
+    expect(setQueryDataSpy).toHaveBeenCalledWith(currentUserQueryKey, user)
+    expect(queryClient.getQueryData(currentUserQueryKey)).toEqual(user)
+    expect(result.current.currentUser.isAuthenticated).toBe(true)
     expect(result.current.location.pathname).toBe('/dashboard')
   })
 })

@@ -79,7 +79,7 @@ export function LoginForm() {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 border-t-0 bg-transparent p-4 pt-0">
+        <CardFooter className="flex flex-col gap-4 border-t-0 bg-transparent p-4">
           <Button type="submit" className="w-full" disabled={isPending}>
             Sign in
           </Button>

@@ -25,8 +25,8 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (request: LoginRequest) => login(request),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: currentUserQueryKey })
+    onSuccess: (user) => {
+      queryClient.setQueryData(currentUserQueryKey, user)
       navigate('/dashboard')
     },
   })
