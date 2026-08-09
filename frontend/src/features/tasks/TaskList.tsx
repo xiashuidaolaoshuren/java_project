@@ -96,7 +96,7 @@ function TaskListSkeleton() {
   )
 }
 
-function TaskListEmpty() {
+function TaskListEmpty({ onCreateTask }: { onCreateTask: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-10 text-center">
       <ListTodoIcon className="size-8 text-muted-foreground" aria-hidden />
@@ -106,15 +106,22 @@ function TaskListEmpty() {
           Click New Task to create your first one.
         </p>
       </div>
+      <Button type="button" onClick={onCreateTask}>
+        New Task
+      </Button>
     </div>
   )
 }
 
 type TaskListProps = {
   onEditTask?: (task: TaskResponse) => void
+  onCreateTask?: () => void
 }
 
-export function TaskList({ onEditTask = () => undefined }: TaskListProps) {
+export function TaskList({
+  onEditTask = () => undefined,
+  onCreateTask = () => undefined,
+}: TaskListProps) {
   const { isPending, isError, isEmpty, tasks, error, refetch } = useTasks()
   const { mutate: updateTask, isPending: isUpdating } = useUpdateTask()
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask()
@@ -151,7 +158,7 @@ export function TaskList({ onEditTask = () => undefined }: TaskListProps) {
   }
 
   if (isEmpty) {
-    return <TaskListEmpty />
+    return <TaskListEmpty onCreateTask={onCreateTask} />
   }
 
   return (

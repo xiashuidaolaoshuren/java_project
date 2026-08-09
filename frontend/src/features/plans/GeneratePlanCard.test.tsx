@@ -104,6 +104,24 @@ describe('GeneratePlanCard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('provider down')
   })
 
+  it('shows inline error for non-502 generate failures', () => {
+    mockedUseGeneratePlan.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: true,
+      error: new ApiError({
+        status: 400,
+        message: 'No open tasks available for planning',
+      }),
+    } as unknown as ReturnType<typeof useGeneratePlan>)
+
+    renderGeneratePlanCard()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No open tasks available for planning',
+    )
+  })
+
   it('shows success toast after generate succeeds', () => {
     const mutate = vi.fn(
       (_payload: unknown, options?: { onSuccess?: () => void }) => {

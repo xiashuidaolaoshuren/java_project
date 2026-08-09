@@ -18,16 +18,17 @@ const mockedUseTasks = vi.mocked(useTasks)
 const mockedUseUpdateTask = vi.mocked(useUpdateTask)
 const mockedUseDeleteTask = vi.mocked(useDeleteTask)
 
-function renderTaskList(onEditTask = vi.fn()) {
+function renderTaskList(onEditTask = vi.fn(), onCreateTask = vi.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
 
   return {
     onEditTask,
+    onCreateTask,
     ...render(
       <QueryClientProvider client={queryClient}>
-        <TaskList onEditTask={onEditTask} />
+        <TaskList onEditTask={onEditTask} onCreateTask={onCreateTask} />
       </QueryClientProvider>,
     ),
   }
@@ -86,6 +87,25 @@ describe('TaskList', () => {
     expect(
       screen.getByText(/click new task to create your first one/i),
     ).toBeInTheDocument()
+  })
+
+  it('renders empty-state New Task button that calls onCreateTask', () => {
+    const onCreateTask = vi.fn()
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: true,
+      tasks: [],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList(vi.fn(), onCreateTask)
+
+    const createButton = screen.getByRole('button', { name: /^new task$/i })
+    expect(createButton).toBeInTheDocument()
+    fireEvent.click(createButton)
+    expect(onCreateTask).toHaveBeenCalled()
   })
 
   it('renders an error alert with retry action', () => {

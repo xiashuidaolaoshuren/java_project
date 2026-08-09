@@ -18,7 +18,7 @@ import type { TaskResponse } from '@/types/api'
 export function DashboardPage() {
   const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskResponse | null>(null)
-  const { plan } = useTodayPlan()
+  const { plan, isPending, isError, refetch } = useTodayPlan()
 
   function openCreateSheet() {
     setEditingTask(null)
@@ -58,7 +58,7 @@ export function DashboardPage() {
             New Task
           </Button>
         </div>
-        <TaskList onEditTask={openEditSheet} />
+        <TaskList onEditTask={openEditSheet} onCreateTask={openCreateSheet} />
       </section>
 
       <Sheet open={isTaskSheetOpen} onOpenChange={handleSheetOpenChange}>
@@ -81,7 +81,12 @@ export function DashboardPage() {
 
       <aside className="flex flex-col gap-4">
         <GeneratePlanCard />
-        <DailyPlanView plan={plan} />
+        <DailyPlanView
+          plan={plan}
+          isPending={isPending}
+          isError={isError}
+          onRetry={refetch}
+        />
       </aside>
     </div>
   )

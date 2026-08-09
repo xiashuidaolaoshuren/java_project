@@ -13,14 +13,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useGeneratePlan } from '@/features/plans/hooks'
-import { ApiError } from '@/lib/api'
 
 export function GeneratePlanCard() {
   const [availableMinutes, setAvailableMinutes] = useState('60')
   const { mutate, isPending, isError, error } = useGeneratePlan()
 
-  const showProviderError =
-    isError && error instanceof ApiError && error.status === 502
+  const showGenerateError = isError && error instanceof Error
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -44,7 +42,7 @@ export function GeneratePlanCard() {
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          {showProviderError && (
+          {showGenerateError && (
             <Alert variant="destructive">
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>

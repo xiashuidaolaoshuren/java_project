@@ -128,8 +128,42 @@ function mockMutations() {
 function mockNoPlan() {
   mockedUseTodayPlan.mockReturnValue({
     isPending: false,
+    isError: false,
     plan: null,
     hasPlan: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useTodayPlan>)
+  mockedUseGeneratePlan.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useGeneratePlan>)
+}
+
+function mockPendingPlan() {
+  mockedUseTodayPlan.mockReturnValue({
+    isPending: true,
+    isError: false,
+    plan: null,
+    hasPlan: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useTodayPlan>)
+  mockedUseGeneratePlan.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useGeneratePlan>)
+}
+
+function mockPlanError() {
+  mockedUseTodayPlan.mockReturnValue({
+    isPending: false,
+    isError: true,
+    plan: null,
+    hasPlan: false,
+    refetch: vi.fn(),
   } as unknown as ReturnType<typeof useTodayPlan>)
   mockedUseGeneratePlan.mockReturnValue({
     mutate: vi.fn(),
@@ -142,8 +176,10 @@ function mockNoPlan() {
 function mockExistingPlan() {
   mockedUseTodayPlan.mockReturnValue({
     isPending: false,
+    isError: false,
     plan: samplePlan,
     hasPlan: true,
+    refetch: vi.fn(),
   } as unknown as ReturnType<typeof useTodayPlan>)
   mockedUseGeneratePlan.mockReturnValue({
     mutate: vi.fn(),
@@ -173,7 +209,25 @@ describe('DashboardPage', () => {
 
     renderDashboard()
 
-    fireEvent.click(screen.getByRole('button', { name: /new task/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^new task$/i })[0]!)
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+    expect(
+      screen.getByRole('heading', { name: /new task/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the create-task sheet when empty-state New Task CTA is clicked', async () => {
+    mockEmptyTasks()
+    mockMutations()
+    mockNoPlan()
+
+    renderDashboard()
+
+    const newTaskButtons = screen.getAllByRole('button', { name: /^new task$/i })
+    fireEvent.click(newTaskButtons[newTaskButtons.length - 1]!)
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -208,7 +262,7 @@ describe('DashboardPage', () => {
 
     renderDashboard()
 
-    fireEvent.click(screen.getByRole('button', { name: /new task/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^new task$/i })[0]!)
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -302,6 +356,27 @@ describe('DashboardPage', () => {
 
     expect(screen.getByText('Write tests')).toBeInTheDocument()
     expect(screen.getByText('45 min')).toBeInTheDocument()
+  })
+
+  it('shows plan skeleton while today plan is loading', () => {
+    mockEmptyTasks()
+    mockMutations()
+    mockPendingPlan()
+
+    renderDashboard()
+
+    expect(screen.getByRole('status', { name: /loading plan/i })).toBeInTheDocument()
+    expect(screen.queryByText(/no plan for today yet/i)).not.toBeInTheDocument()
+  })
+
+  it('shows plan error alert when today plan fails to load', () => {
+    mockEmptyTasks()
+    mockMutations()
+    mockPlanError()
+
+    renderDashboard()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not load plan/i)
   })
 
   it('updates displayed plan after successful generate', () => {

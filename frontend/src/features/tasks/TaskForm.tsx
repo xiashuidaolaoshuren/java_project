@@ -4,9 +4,30 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useCreateTask, useUpdateTask } from '@/features/tasks/hooks'
 import { ApiError } from '@/lib/api'
 import type { TaskPriority, TaskResponse, TaskStatus } from '@/types/api'
+
+const PRIORITY_ITEMS: { value: TaskPriority; label: string }[] = [
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+]
+
+const STATUS_ITEMS: { value: TaskStatus; label: string }[] = [
+  { value: 'OPEN', label: 'Open' },
+  { value: 'IN_PROGRESS', label: 'In progress' },
+  { value: 'DONE', label: 'Done' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+]
 
 function getFieldError(
   error: Error | null,
@@ -84,10 +105,13 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           aria-invalid={Boolean(getFieldError(error, 'title'))}
+          aria-describedby={
+            getFieldError(error, 'title') ? 'title-error' : undefined
+          }
           required
         />
         {isError && getFieldError(error, 'title') ? (
-          <p className="text-sm text-destructive">
+          <p id="title-error" className="text-sm text-destructive">
             {getFieldError(error, 'title')}
           </p>
         ) : null}
@@ -100,42 +124,56 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           aria-invalid={Boolean(getFieldError(error, 'description'))}
+          aria-describedby={
+            getFieldError(error, 'description') ? 'description-error' : undefined
+          }
         />
         {isError && getFieldError(error, 'description') ? (
-          <p className="text-sm text-destructive">
+          <p id="description-error" className="text-sm text-destructive">
             {getFieldError(error, 'description')}
           </p>
         ) : null}
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="priority">Priority</Label>
-        <select
-          id="priority"
-          name="priority"
+        <Label>Priority</Label>
+        <Select
           value={priority}
-          onChange={(event) => setPriority(event.target.value as TaskPriority)}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          onValueChange={(value) => setPriority(value as TaskPriority)}
         >
-          <option value="LOW">Low</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="HIGH">High</option>
-        </select>
+          <SelectTrigger aria-label="Priority" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {PRIORITY_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       {isEditMode ? (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="status">Status</Label>
-          <select
-            id="status"
-            name="status"
+          <Label>Status</Label>
+          <Select
             value={status}
-            onChange={(event) => setStatus(event.target.value as TaskStatus)}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            onValueChange={(value) => setStatus(value as TaskStatus)}
           >
-            <option value="OPEN">Open</option>
-            <option value="IN_PROGRESS">In progress</option>
-            <option value="DONE">Done</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
+            <SelectTrigger aria-label="Status" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {STATUS_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       ) : null}
       <div className="flex flex-col gap-2">
@@ -147,9 +185,12 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
           value={dueDate}
           onChange={(event) => setDueDate(event.target.value)}
           aria-invalid={Boolean(getFieldError(error, 'dueDate'))}
+          aria-describedby={
+            getFieldError(error, 'dueDate') ? 'dueDate-error' : undefined
+          }
         />
         {isError && getFieldError(error, 'dueDate') ? (
-          <p className="text-sm text-destructive">
+          <p id="dueDate-error" className="text-sm text-destructive">
             {getFieldError(error, 'dueDate')}
           </p>
         ) : null}
@@ -164,9 +205,14 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
           value={estimatedMinutes}
           onChange={(event) => setEstimatedMinutes(event.target.value)}
           aria-invalid={Boolean(getFieldError(error, 'estimatedMinutes'))}
+          aria-describedby={
+            getFieldError(error, 'estimatedMinutes')
+              ? 'estimatedMinutes-error'
+              : undefined
+          }
         />
         {isError && getFieldError(error, 'estimatedMinutes') ? (
-          <p className="text-sm text-destructive">
+          <p id="estimatedMinutes-error" className="text-sm text-destructive">
             {getFieldError(error, 'estimatedMinutes')}
           </p>
         ) : null}

@@ -5,19 +5,81 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import type { DailyPlanResponse } from '@/types/api'
 
 type DailyPlanViewProps = {
   plan: DailyPlanResponse | null
   title?: string
   emptyDescription?: string
+  isPending?: boolean
+  isError?: boolean
+  onRetry?: () => void
+}
+
+function DailyPlanViewSkeleton({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>
+          <Skeleton className="h-4 w-32" />
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div
+          role="status"
+          aria-label="Loading plan"
+          className="flex flex-col gap-3"
+        >
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton
+              key={index}
+              data-testid="plan-skeleton-row"
+              className="h-12 w-full rounded-lg"
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function DailyPlanView({
   plan,
   title = "Today's plan",
   emptyDescription = 'No plan for today yet.',
+  isPending = false,
+  isError = false,
+  onRetry,
 }: DailyPlanViewProps) {
+  if (isPending) {
+    return <DailyPlanViewSkeleton title={title} />
+  }
+
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Could not load plan</AlertTitle>
+        <AlertDescription>
+          Something went wrong while loading today&apos;s plan.
+        </AlertDescription>
+        <AlertAction>
+          <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+            Retry
+          </Button>
+        </AlertAction>
+      </Alert>
+    )
+  }
+
   if (plan == null) {
     return (
       <Card>

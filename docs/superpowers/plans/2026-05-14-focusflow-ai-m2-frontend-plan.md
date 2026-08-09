@@ -252,7 +252,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15d - Dashboard Page Polish
 
-- [ ] **Do:** Render today-plan skeleton/error instead of conflating with empty (`DashboardPage` + `DailyPlanView`); surface non-502 generate failures in `GeneratePlanCard`; add CTA to `TaskList` empty state; wire `aria-describedby` in `TaskForm`; review native select vs shadcn `select`; verify focus restore on sheet close.
+- [X] **Do:** Render today-plan skeleton/error instead of conflating with empty (`DashboardPage` + `DailyPlanView`); surface non-502 generate failures in `GeneratePlanCard`; add CTA to `TaskList` empty state; wire `aria-describedby` in `TaskForm`; review native select vs shadcn `select`; verify focus restore on sheet close.
 - **TDD suitable:** partial - TDD slice: today-plan loading/error, generate-error alert, empty CTA; manual slice: sheet focus restore and visuals.
 - **Blocked by:** F14
 - **Plan mode:** medium
