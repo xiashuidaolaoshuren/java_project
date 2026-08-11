@@ -135,3 +135,83 @@ return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername());
 - Returning a user body is not the same as establishing a session. Related auth paths (`register` / `login`) must both set `SecurityContext` when the product expects an immediate logged-in state.
 - Mocking the service in controller tests hides session side effects — add a service-level (or integration) test that asserts `SecurityContextHolder` after register.
 - Client-side cache seeding can mask a missing server session until the first protected API call.
+
+---
+
+## 3. First login/register POST returns 401 (CSRF cookie never seeded)
+
+**When:** Auth integration (login / register from the SPA)  
+**Area:** `backend/.../security/CsrfCookieFilter.java`, `SecurityConfig.java`, `frontend/.../PublicLayout.tsx`  
+**Symptom:** With correct credentials, the first `POST /api/auth/login` (or register) failed with **401** and the UI showed “Request failed with status 401”. The second attempt succeeded. Backend logs only showed DispatcherServlet initializing on that first request — easy to misread as “backend not ready.”
+
+### What we saw
+
+1. Start backend + Vite frontend; open `/login` with a clean browser (no cookies).
+2. Submit valid credentials once → **401**.
+3. Submit the same credentials again → **200** and session works.
+4. Same pattern on `/register`.
+
+Network tab: first POST had no `X-XSRF-TOKEN` header; the failing response set `XSRF-TOKEN`; the second POST sent the header and succeeded.
+
+### Root cause (two layers)
+
+**1. Public pages never called the API before the first POST**
+
+`PublicLayout` (used by `/login` and `/register`) rendered the form only. No GET hit the backend, so the browser had no `XSRF-TOKEN` cookie.
+
+`apiRequest` only attaches `X-XSRF-TOKEN` when the cookie already exists:
+
+```ts
+if (isMutatingMethod(method)) {
+  const csrfToken = getCsrfToken()
+  if (csrfToken) {
+    // set X-XSRF-TOKEN
+  }
+}
+```
+
+Protected routes already called `useCurrentUser()` → `GET /api/auth/me`, which *could* seed the cookie. Public pages did not.
+
+**2. Spring Security 6.x lazy CSRF: GET alone still did not set the cookie**
+
+Even after calling `GET /api/auth/me` from `PublicLayout`, the cookie was still missing on that 401 response.
+
+With Spring Boot 3.4 / Security 6.4, CSRF uses a deferred token (`DeferredCsrfToken` / `SupplierCsrfToken`). The cookie is written only when the token is **resolved** (`getToken()`), which happens when:
+
+- A controller method injects `CsrfToken`, or
+- `CsrfFilter` validates the token on a state-changing request (POST/PUT/…), including when validation fails.
+
+For anonymous `GET /api/auth/me`:
+
+1. `CsrfFilter` attaches an unresolved deferred token.
+2. Auth fails → `HttpStatusEntryPoint` returns **401**.
+3. Response commits → **no** `Set-Cookie: XSRF-TOKEN` (token never resolved).
+
+The first login POST then fails CSRF. During rejection the token is resolved and the cookie is saved — so the second POST works. Spring maps anonymous CSRF failures through the authentication entry point, so the status is **401**, not 403.
+
+DispatcherServlet “Initializing…” on the first request is normal lazy servlet init, not the cause of the 401.
+
+### Fix
+
+**Frontend:** Call `useCurrentUser()` in `PublicLayout` so mount triggers `GET /api/auth/me` before any login/register POST.
+
+**Backend:** Add `CsrfCookieFilter` after `CsrfFilter` that forces resolution:
+
+```java
+CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+if (csrfToken != null) {
+  csrfToken.getToken(); // resolve deferred token → CookieCsrfTokenRepository saves XSRF-TOKEN
+}
+filterChain.doFilter(request, response);
+```
+
+Register with `http.addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)`.
+
+Together: public page GET seeds the cookie; subsequent POSTs send `X-XSRF-TOKEN` and succeed on the first try.
+
+### Lesson
+
+- Cookie CSRF + SPA needs a **GET (or other non-mutating) round-trip that actually resolves the token** before the first POST — not only “hit any API.”
+- On Spring Security 6+, assume deferred CSRF: a 401 from an entry point does **not** imply the CSRF cookie was set.
+- A “first attempt fails, second works” auth bug is often missing CSRF on attempt 1, not wrong credentials.
+- Cover with a regression test: unauthenticated `GET /api/auth/me` must return `Set-Cookie: XSRF-TOKEN` (and a frontend test that public layout loads current user on mount).
