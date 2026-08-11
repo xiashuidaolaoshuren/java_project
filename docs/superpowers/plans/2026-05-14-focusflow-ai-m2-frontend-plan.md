@@ -276,7 +276,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15g - Cross-Route Accessibility Audit And Smoke Check
 
-- [ ] **Do:** Keyboard-only walkthrough of all five routes in both themes; verify labels, focus rings, contrast baseline, and toast/confirm behavior; run full suite.
+- [X] **Do:** Keyboard-only walkthrough of all five routes in both themes; verify labels, focus rings, contrast baseline, and toast/confirm behavior; run full suite.
 - **TDD suitable:** no - Manual audit checklist across routes.
 - **Blocked by:** F15a, F15b, F15c, F15d, F15e, F15f
 - **Plan mode:** skip

@@ -85,7 +85,10 @@ export function LoginForm() {
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-primary underline-offset-4 hover:underline">
+            <Link
+              to="/register"
+              className="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
               Register
             </Link>
           </p>

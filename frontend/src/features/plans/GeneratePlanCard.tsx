@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -44,6 +44,7 @@ export function GeneratePlanCard() {
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           {showGenerateError && (
             <Alert variant="destructive">
+              <AlertTitle>Could not generate plan</AlertTitle>
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           )}
