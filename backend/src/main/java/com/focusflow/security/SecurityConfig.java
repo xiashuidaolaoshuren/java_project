@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 @Configuration
@@ -72,6 +73,7 @@ public class SecurityConfig {
 										.invalidateHttpSession(true)
 										.deleteCookies("JSESSIONID")
 										.clearAuthentication(true))
+				.addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
 				.build();
 	}
 }
