@@ -71,6 +71,13 @@ describe('PlanHistoryList', () => {
     expect(screen.getByText(/no saved plans yet/i)).toBeInTheDocument()
   })
 
+  it('renders empty-state CTA link to dashboard', () => {
+    renderPlanHistoryList({ plans: [] })
+
+    const dashboardLink = screen.getByRole('link', { name: /go to dashboard/i })
+    expect(dashboardLink).toHaveAttribute('href', '/dashboard')
+  })
+
   it('renders error alert with retry when isError', () => {
     const onRetry = vi.fn()
     renderPlanHistoryList({ isError: true, onRetry })

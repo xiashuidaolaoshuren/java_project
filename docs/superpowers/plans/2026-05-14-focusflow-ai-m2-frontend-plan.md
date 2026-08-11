@@ -260,7 +260,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15e - Plan History Page Polish
 
-- [ ] **Do:** Add CTA link to `PlanHistoryList` empty state; verify skeleton/error/retry and link focus styles.
+- [X] **Do:** Add CTA link to `PlanHistoryList` empty state; verify skeleton/error/retry and link focus styles.
 - **TDD suitable:** partial - TDD slice: empty-state CTA and state rendering; manual slice: link focus styles.
 - **Blocked by:** F14
 - **Plan mode:** skip

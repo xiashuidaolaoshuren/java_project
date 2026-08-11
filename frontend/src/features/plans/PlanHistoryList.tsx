@@ -46,6 +46,7 @@ function PlanHistoryListEmpty() {
           Generate a daily plan from the dashboard to see it here.
         </p>
       </div>
+      <Button render={<Link to="/dashboard" />}>Go to Dashboard</Button>
     </div>
   )
 }
@@ -88,7 +89,7 @@ export function PlanHistoryList({
         <li key={plan.id}>
           <Link
             to={`/plans/${plan.id}`}
-            className="flex items-center justify-between rounded-xl border border-border px-4 py-3 transition-colors hover:bg-muted/50"
+            className="flex items-center justify-between rounded-xl border border-border px-4 py-3 transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <span className="font-medium">{plan.planDate}</span>
             <span className="text-sm text-muted-foreground">
