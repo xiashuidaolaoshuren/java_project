@@ -268,7 +268,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F15f - Plan Detail Page Polish
 
-- [ ] **Do:** Restyle back links for visible focus; verify skeleton, not-found, and retry states against the UI spec.
+- [X] **Do:** Restyle back links for visible focus; verify skeleton, not-found, and retry states against the UI spec.
 - **TDD suitable:** no - Visual refinement of states already built and tested in F14.
 - **Blocked by:** F14
 - **Plan mode:** skip

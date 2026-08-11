@@ -12,6 +12,9 @@ import { DailyPlanView } from '@/features/plans/DailyPlanView'
 import { usePlan } from '@/features/plans/hooks'
 import { ApiError } from '@/lib/api'
 
+const backLinkClassName =
+  'inline-flex h-8 w-fit items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium transition-colors outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
+
 function parsePlanId(idParam: string | undefined): number {
   if (idParam == null) {
     return Number.NaN
@@ -43,10 +46,7 @@ function PlanNotFoundState() {
           This saved plan does not exist or is no longer available.
         </p>
       </div>
-      <Link
-        to="/plans"
-        className="inline-flex h-8 w-fit items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted"
-      >
+      <Link to="/plans" className={backLinkClassName}>
         Back to plan history
       </Link>
     </div>
@@ -95,10 +95,7 @@ export function PlanDetailPage() {
         </p>
       </div>
       <DailyPlanView plan={plan} title={`Plan for ${plan?.planDate ?? ''}`} />
-      <Link
-        to="/plans"
-        className="inline-flex h-8 w-fit items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted"
-      >
+      <Link to="/plans" className={backLinkClassName}>
         Back to plan history
       </Link>
     </div>
