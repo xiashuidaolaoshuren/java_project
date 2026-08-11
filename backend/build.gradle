@@ -33,3 +33,41 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+def loadRepoDotEnv() {
+	def envFile = rootProject.projectDir.parentFile.toPath().resolve('.env').toFile()
+	if (!envFile.exists()) {
+		return [:]
+	}
+
+	def loaded = [:]
+	envFile.eachLine { line ->
+		def trimmed = line.trim()
+		if (trimmed.isEmpty() || trimmed.startsWith('#')) {
+			return
+		}
+
+		def separatorIndex = trimmed.indexOf('=')
+		if (separatorIndex <= 0) {
+			return
+		}
+
+		def key = trimmed.substring(0, separatorIndex).trim()
+		def value = trimmed.substring(separatorIndex + 1).trim()
+		if ((value.startsWith('"') && value.endsWith('"'))
+				|| (value.startsWith("'") && value.endsWith("'"))) {
+			value = value.substring(1, value.length() - 1)
+		}
+
+		def systemValue = System.getenv(key)
+		if (systemValue == null || systemValue.isBlank()) {
+			loaded[key] = value
+		}
+	}
+
+	return loaded
+}
+
+tasks.named('bootRun') {
+	environment loadRepoDotEnv()
+}
