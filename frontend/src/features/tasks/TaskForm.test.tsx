@@ -2,9 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { TaskForm, TaskFormSubmitButton } from '@/features/tasks/TaskForm'
 import { ApiError } from '@/lib/api'
 import type { TaskResponse } from '@/types/api'
-import { TaskForm } from '@/features/tasks/TaskForm'
 
 vi.mock('@/features/tasks/hooks', () => ({
   useCreateTask: vi.fn(),
@@ -27,6 +27,7 @@ function renderTaskForm(onSuccess = vi.fn(), task?: TaskResponse) {
   const view = render(
     <QueryClientProvider client={queryClient}>
       <TaskForm onSuccess={onSuccess} task={task} />
+      <TaskFormSubmitButton isEditMode={task != null} />
     </QueryClientProvider>,
   )
 
@@ -37,6 +38,7 @@ function renderTaskForm(onSuccess = vi.fn(), task?: TaskResponse) {
       view.rerender(
         <QueryClientProvider client={queryClient}>
           <TaskForm onSuccess={nextOnSuccess} task={nextTask} />
+          <TaskFormSubmitButton isEditMode={nextTask != null} />
         </QueryClientProvider>,
       ),
   }

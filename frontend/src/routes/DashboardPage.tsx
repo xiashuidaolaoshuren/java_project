@@ -5,13 +5,14 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { TaskForm, TaskFormSubmitButton } from '@/features/tasks/TaskForm'
 import { DailyPlanView } from '@/features/plans/DailyPlanView'
 import { GeneratePlanCard } from '@/features/plans/GeneratePlanCard'
 import { useTodayPlan } from '@/features/plans/hooks'
-import { TaskForm } from '@/features/tasks/TaskForm'
 import { TaskList } from '@/features/tasks/TaskList'
 import type { TaskResponse } from '@/types/api'
 
@@ -76,6 +77,9 @@ export function DashboardPage() {
           ) : (
             <TaskForm onSuccess={closeTaskSheet} />
           )}
+          <SheetFooter>
+            <TaskFormSubmitButton isEditMode={isEditMode} />
+          </SheetFooter>
         </SheetContent>
       </Sheet>
 

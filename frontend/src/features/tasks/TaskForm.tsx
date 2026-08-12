@@ -39,9 +39,27 @@ function getFieldError(
   return error.details[fieldName]?.[0]
 }
 
+export const TASK_FORM_ID = 'task-form'
+
 type TaskFormProps = {
   onSuccess?: () => void
   task?: TaskResponse
+}
+
+type TaskFormSubmitButtonProps = {
+  isEditMode: boolean
+}
+
+export function TaskFormSubmitButton({ isEditMode }: TaskFormSubmitButtonProps) {
+  const createMutation = useCreateTask()
+  const updateMutation = useUpdateTask()
+  const isPending = isEditMode ? updateMutation.isPending : createMutation.isPending
+
+  return (
+    <Button type="submit" form={TASK_FORM_ID} className="w-full" disabled={isPending}>
+      {isEditMode ? 'Save task' : 'Create task'}
+    </Button>
+  )
 }
 
 export function TaskForm({ onSuccess, task }: TaskFormProps) {
@@ -56,7 +74,6 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
   )
   const createMutation = useCreateTask()
   const updateMutation = useUpdateTask()
-  const isPending = isEditMode ? updateMutation.isPending : createMutation.isPending
   const isError = isEditMode ? updateMutation.isError : createMutation.isError
   const error = isEditMode ? updateMutation.error : createMutation.error
 
@@ -91,7 +108,12 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form
+      id={TASK_FORM_ID}
+      onSubmit={handleSubmit}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
       {isError && error instanceof Error ? (
         <Alert variant="destructive">
           <AlertDescription>{error.message}</AlertDescription>
@@ -217,9 +239,7 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
           </p>
         ) : null}
       </div>
-      <Button type="submit" disabled={isPending}>
-        {isEditMode ? 'Save task' : 'Create task'}
-      </Button>
+      </div>
     </form>
   )
 }
