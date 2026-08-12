@@ -4,12 +4,16 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { DashboardPage } from '@/routes/DashboardPage'
 
-vi.mock('@/features/tasks/hooks', () => ({
-  useTasks: vi.fn(),
-  useCreateTask: vi.fn(),
-  useUpdateTask: vi.fn(),
-  useDeleteTask: vi.fn(),
-}))
+vi.mock('@/features/tasks/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/tasks/hooks')>()
+  return {
+    ...actual,
+    useTasks: vi.fn(),
+    useCreateTask: vi.fn(),
+    useUpdateTask: vi.fn(),
+    useDeleteTask: vi.fn(),
+  }
+})
 
 vi.mock('@/features/plans/hooks', () => ({
   useTodayPlan: vi.fn(),

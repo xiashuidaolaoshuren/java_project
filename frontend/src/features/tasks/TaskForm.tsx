@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useIsMutating } from '@tanstack/react-query'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -12,7 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useCreateTask, useUpdateTask } from '@/features/tasks/hooks'
+import {
+  createTaskMutationKey,
+  formUpdateTaskMutationKey,
+  useCreateTask,
+  useUpdateTask,
+} from '@/features/tasks/hooks'
 import { ApiError } from '@/lib/api'
 import type { TaskPriority, TaskResponse, TaskStatus } from '@/types/api'
 
@@ -51,9 +57,9 @@ type TaskFormSubmitButtonProps = {
 }
 
 export function TaskFormSubmitButton({ isEditMode }: TaskFormSubmitButtonProps) {
-  const createMutation = useCreateTask()
-  const updateMutation = useUpdateTask()
-  const isPending = isEditMode ? updateMutation.isPending : createMutation.isPending
+  const creating = useIsMutating({ mutationKey: createTaskMutationKey })
+  const updating = useIsMutating({ mutationKey: formUpdateTaskMutationKey })
+  const isPending = (isEditMode ? updating : creating) > 0
 
   return (
     <Button type="submit" form={TASK_FORM_ID} className="w-full" disabled={isPending}>
@@ -73,7 +79,7 @@ export function TaskForm({ onSuccess, task }: TaskFormProps) {
     task?.estimatedMinutes != null ? String(task.estimatedMinutes) : '',
   )
   const createMutation = useCreateTask()
-  const updateMutation = useUpdateTask()
+  const updateMutation = useUpdateTask({ mutationKey: formUpdateTaskMutationKey })
   const isError = isEditMode ? updateMutation.isError : createMutation.isError
   const error = isEditMode ? updateMutation.error : createMutation.error
 

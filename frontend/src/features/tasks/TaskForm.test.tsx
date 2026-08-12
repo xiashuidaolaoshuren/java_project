@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useIsMutating } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -6,15 +6,30 @@ import { TaskForm, TaskFormSubmitButton } from '@/features/tasks/TaskForm'
 import { ApiError } from '@/lib/api'
 import type { TaskResponse } from '@/types/api'
 
-vi.mock('@/features/tasks/hooks', () => ({
-  useCreateTask: vi.fn(),
-  useUpdateTask: vi.fn(),
-}))
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
+    '@tanstack/react-query',
+  )
+  return {
+    ...actual,
+    useIsMutating: vi.fn(() => 0),
+  }
+})
+
+vi.mock('@/features/tasks/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/tasks/hooks')>()
+  return {
+    ...actual,
+    useCreateTask: vi.fn(),
+    useUpdateTask: vi.fn(),
+  }
+})
 
 import { useCreateTask, useUpdateTask } from '@/features/tasks/hooks'
 
 const mockedUseCreateTask = vi.mocked(useCreateTask)
 const mockedUseUpdateTask = vi.mocked(useUpdateTask)
+const mockedUseIsMutating = vi.mocked(useIsMutating)
 
 function renderTaskForm(onSuccess = vi.fn(), task?: TaskResponse) {
   const queryClient = new QueryClient({
@@ -63,6 +78,7 @@ describe('TaskForm', () => {
       isError: false,
       error: null,
     } as unknown as ReturnType<typeof useCreateTask>)
+    mockedUseIsMutating.mockReturnValue(0)
 
     const { rerenderForm } = renderTaskForm()
 
@@ -106,12 +122,10 @@ describe('TaskForm', () => {
       }),
     )
 
-    mockedUseCreateTask.mockReturnValue({
-      mutate,
-      isPending: true,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof useCreateTask>)
+    mockedUseIsMutating.mockImplementation((filters) => {
+      const mutationKey = filters?.mutationKey
+      return Array.isArray(mutationKey) && mutationKey[1] === 'create' ? 1 : 0
+    })
 
     rerenderForm()
 
@@ -254,5 +268,34 @@ describe('TaskForm', () => {
         onSuccess: expect.any(Function),
       }),
     )
+  })
+
+  it('disables save while form update mutation is pending', async () => {
+    const mutate = vi.fn()
+    mockedUseUpdateTask.mockReturnValue({
+      mutate,
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useUpdateTask>)
+    mockedUseIsMutating.mockReturnValue(0)
+
+    const { rerenderForm } = renderTaskForm(vi.fn(), sampleTask)
+
+    fireEvent.change(screen.getByLabelText(/^title$/i), {
+      target: { value: 'Updated report' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save task/i }))
+
+    expect(mutate).toHaveBeenCalled()
+
+    mockedUseIsMutating.mockImplementation((filters) => {
+      const mutationKey = filters?.mutationKey
+      return Array.isArray(mutationKey) && mutationKey[1] === 'form-update' ? 1 : 0
+    })
+
+    rerenderForm(vi.fn(), sampleTask)
+
+    expect(screen.getByRole('button', { name: /save task/i })).toBeDisabled()
   })
 })

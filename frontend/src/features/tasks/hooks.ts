@@ -4,6 +4,13 @@ import { createTask, deleteTask, listTasks, updateTask } from '@/features/tasks/
 import type { CreateTaskRequest, UpdateTaskRequest } from '@/types/api'
 
 export const tasksQueryKey = ['tasks', 'list'] as const
+export const createTaskMutationKey = ['tasks', 'create'] as const
+export const updateTaskMutationKey = ['tasks', 'update'] as const
+export const formUpdateTaskMutationKey = ['tasks', 'form-update'] as const
+
+type UseUpdateTaskOptions = {
+  mutationKey?: readonly string[]
+}
 
 export function useTasks() {
   const query = useQuery({
@@ -22,6 +29,7 @@ export function useCreateTask() {
   const queryClient = useQueryClient()
 
   return useMutation({
+    mutationKey: createTaskMutationKey,
     mutationFn: (request: CreateTaskRequest) => createTask(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
@@ -29,10 +37,11 @@ export function useCreateTask() {
   })
 }
 
-export function useUpdateTask() {
+export function useUpdateTask(options?: UseUpdateTaskOptions) {
   const queryClient = useQueryClient()
 
   return useMutation({
+    mutationKey: options?.mutationKey ?? updateTaskMutationKey,
     mutationFn: ({
       id,
       request,
