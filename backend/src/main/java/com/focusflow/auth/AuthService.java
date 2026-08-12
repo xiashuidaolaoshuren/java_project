@@ -50,6 +50,13 @@ public class AuthService {
 		user.setPasswordHash(passwordEncoder.encode(request.password()));
 
 		User saved = userRepository.save(user);
+
+		Authentication authentication =
+				authenticationManager.authenticate(
+						new UsernamePasswordAuthenticationToken(
+								request.username(), request.password()));
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+
 		return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername());
 	}
 

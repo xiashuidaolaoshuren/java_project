@@ -1,0 +1,225 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+
+import { ApiError } from '@/lib/api'
+import type { TaskResponse } from '@/types/api'
+import { TaskList } from '@/features/tasks/TaskList'
+
+vi.mock('@/features/tasks/hooks', () => ({
+  useTasks: vi.fn(),
+  useUpdateTask: vi.fn(),
+  useDeleteTask: vi.fn(),
+}))
+
+import { useDeleteTask, useTasks, useUpdateTask } from '@/features/tasks/hooks'
+
+const mockedUseTasks = vi.mocked(useTasks)
+const mockedUseUpdateTask = vi.mocked(useUpdateTask)
+const mockedUseDeleteTask = vi.mocked(useDeleteTask)
+
+function renderTaskList(onEditTask = vi.fn(), onCreateTask = vi.fn()) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  return {
+    onEditTask,
+    onCreateTask,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <TaskList onEditTask={onEditTask} onCreateTask={onCreateTask} />
+      </QueryClientProvider>,
+    ),
+  }
+}
+
+const sampleTask: TaskResponse = {
+  id: 1,
+  title: 'Write report',
+  description: 'Quarterly summary',
+  priority: 'HIGH',
+  status: 'OPEN',
+  dueDate: '2026-06-15',
+  estimatedMinutes: 60,
+}
+
+describe('TaskList', () => {
+  beforeEach(() => {
+    mockedUseUpdateTask.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateTask>)
+    mockedUseDeleteTask.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useDeleteTask>)
+  })
+
+  it('renders skeleton rows while loading', () => {
+    mockedUseTasks.mockReturnValue({
+      isPending: true,
+      isError: false,
+      isEmpty: false,
+      tasks: [],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList()
+
+    expect(screen.getByRole('status', { name: /loading tasks/i })).toBeInTheDocument()
+    expect(screen.getAllByTestId('task-skeleton-row')).toHaveLength(3)
+  })
+
+  it('renders an empty state when there are no tasks', () => {
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: true,
+      tasks: [],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList()
+
+    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/click new task to create your first one/i),
+    ).toBeInTheDocument()
+  })
+
+  it('renders empty-state New Task button that calls onCreateTask', () => {
+    const onCreateTask = vi.fn()
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: true,
+      tasks: [],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList(vi.fn(), onCreateTask)
+
+    const createButton = screen.getByRole('button', { name: /^new task$/i })
+    expect(createButton).toBeInTheDocument()
+    fireEvent.click(createButton)
+    expect(onCreateTask).toHaveBeenCalled()
+  })
+
+  it('renders an error alert with retry action', () => {
+    const refetch = vi.fn()
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isError: true,
+      isEmpty: false,
+      tasks: [],
+      error: new ApiError({ status: 500, message: 'Failed to load tasks' }),
+      refetch,
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList()
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load tasks')
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+    expect(refetch).toHaveBeenCalled()
+  })
+
+  it('renders loaded task rows with key fields', () => {
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: false,
+      tasks: [sampleTask],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList()
+
+    expect(screen.getByText('Write report')).toBeInTheDocument()
+    expect(screen.getByText('HIGH')).toBeInTheDocument()
+    expect(screen.getByText('OPEN')).toBeInTheDocument()
+    expect(screen.getByText('2026-06-15')).toBeInTheDocument()
+    expect(screen.getByText('60 min')).toBeInTheDocument()
+  })
+
+  it('calls update mutation when quick status changes', () => {
+    const updateMutate = vi.fn()
+    mockedUseUpdateTask.mockReturnValue({
+      mutate: updateMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateTask>)
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: false,
+      tasks: [sampleTask],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList()
+
+    fireEvent.change(screen.getByLabelText(/change status for write report/i), {
+      target: { value: 'IN_PROGRESS' },
+    })
+
+    expect(updateMutate).toHaveBeenCalledWith({
+      id: 1,
+      request: {
+        title: 'Write report',
+        description: 'Quarterly summary',
+        priority: 'HIGH',
+        status: 'IN_PROGRESS',
+        dueDate: '2026-06-15',
+        estimatedMinutes: 60,
+      },
+    })
+  })
+
+  it('calls onEditTask when edit action is clicked', async () => {
+    const onEditTask = vi.fn()
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: false,
+      tasks: [sampleTask],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList(onEditTask)
+
+    fireEvent.click(screen.getByRole('button', { name: /task actions for write report/i }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /edit/i }))
+
+    expect(onEditTask).toHaveBeenCalledWith(sampleTask)
+  })
+
+  it('calls delete mutation only after confirmation', async () => {
+    const deleteMutate = vi.fn()
+    mockedUseDeleteTask.mockReturnValue({
+      mutate: deleteMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useDeleteTask>)
+    mockedUseTasks.mockReturnValue({
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      isEmpty: false,
+      tasks: [sampleTask],
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useTasks>)
+
+    renderTaskList()
+
+    fireEvent.click(screen.getByRole('button', { name: /task actions for write report/i }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /delete/i }))
+
+    expect(deleteMutate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /^delete task$/i }))
+    expect(deleteMutate).toHaveBeenCalledWith(1)
+  })
+})

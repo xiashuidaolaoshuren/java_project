@@ -1,6 +1,7 @@
 # Implementation Plan: FocusFlow AI Milestone 2 - Frontend MVP
 
 **Spec:** `docs/superpowers/specs/2026-05-14-focusflow-ai-design.md`  
+**UI design spec:** `docs/superpowers/specs/2026-05-31-focusflow-frontend-ui-design.md`  
 **Created:** 2026-05-15  
 **Milestone scope:** React/Vite frontend for auth, tasks, daily plan generation, and saved plan review.
 
@@ -13,6 +14,7 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 ## Discovery Notes
 
 - Reuse: Milestone 1 backend API is implemented and is the contract source for frontend types and API calls.
+- UI design: `docs/superpowers/specs/2026-05-31-focusflow-frontend-ui-design.md` defines the visual direction (modern/polished, indigo–violet accent, light+dark), the left-sidebar app shell, two-column dashboard, sheet-based task editing, timeline plan view, and the loading/empty/error state conventions that **F3b** and F7–F15 must follow.
 - Constraints: Follow the approved frontend stack: React, Vite, TypeScript, shadcn/ui, Tailwind CSS, React Router, and TanStack Query.
 - Patterns to follow: Keep API access in `src/lib/api.ts`, server state in TanStack Query hooks, route pages in `src/routes`, and feature-specific UI in `src/features`.
 - Test tooling: Introduce Vitest and React Testing Library during **F4** so **`TDD suitable: yes`** subtasks can test hooks, API helpers, and route guards; until then rely on build checks plus manual browser verification.
@@ -50,8 +52,9 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 | `frontend/src/routes/DashboardPage.tsx` | create | Render authenticated task dashboard and plan generation entrypoint. | `/dashboard`. |
 | `frontend/src/routes/PlanHistoryPage.tsx` | create | Render saved plans. | `/plans`. |
 | `frontend/src/routes/PlanDetailPage.tsx` | create | Render one saved plan. | `/plans/:id`. |
-| `frontend/src/components/layout/AppLayout.tsx` | create | Provide shared authenticated layout and navigation. | Layout component. |
-| `frontend/src/components/layout/PublicLayout.tsx` | create | Provide public auth-page layout. | Layout component. |
+| `frontend/src/components/layout/AppLayout.tsx` | create | Provide shared authenticated **left-sidebar** shell with nav, theme toggle, and user menu (per UI spec). | Layout component. |
+| `frontend/src/components/layout/PublicLayout.tsx` | create | Provide public auth-page layout with a centered auth card. | Layout component. |
+| `frontend/src/components/theme/*` | create | Provide light/dark theme provider, toggle, and persisted preference (per UI spec). | Theme provider and toggle. |
 
 ### Features
 
@@ -77,7 +80,7 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 
 | Path | Create/Modify | Responsibility | Public Surface |
 |------|----------------|----------------|----------------|
-| `frontend/src/components/ui/*` | create | Store shadcn/ui generated components. | UI component imports. |
+| `frontend/src/components/ui/*` | create | Store shadcn/ui generated components. Existing: button, card, input, label, field, form, alert, separator. UI spec adds: sheet, dialog, dropdown-menu, sonner, badge, skeleton, select, and a date input as feature work reaches them. | UI component imports. |
 
 ## Blast Radius
 
@@ -89,6 +92,7 @@ Out of scope: Next.js, SSR, Redux, micro-frontends, complex animation systems, f
 | `frontend/src/lib/api.ts` | Central API helper controls cookies, CSRF, error handling, and all backend calls. | high - confirm contract with Spring Security behavior from Milestone 1. |
 | `frontend/src/types/api.ts` | Type drift from backend DTOs can cause confusing integration bugs. | medium - confirm endpoint payloads after backend milestone. |
 | `frontend/src/features/auth/*` | Auth flow controls access to every protected screen. | high - confirm current-user, login, logout, and refresh behavior. |
+| `frontend/src/components/layout/AppLayout.tsx` | Shared authenticated shell; skip-link and nav changes affect every protected page. | medium - covered by F15a; guarded by existing `AppLayout.test.tsx`. |
 
 ## Workflow For Implementers
 
@@ -104,7 +108,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F1 - Scaffold Vite React TypeScript App
 
-- [ ] **Do:** Create the `frontend` Vite React TypeScript project and verify it builds before adding product code.
+- [X] **Do:** Create the `frontend` Vite React TypeScript project and verify it builds before adding product code.
 - **TDD suitable:** no - Project bootstrap is structural setup validated by build checks.
 - **Blocked by:** -
 - **Plan mode:** high
@@ -112,7 +116,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F2 - Configure Tailwind CSS And shadcn/ui
 
-- [ ] **Do:** Add Tailwind CSS, shadcn/ui config, global CSS, `cn` utility, and the first required UI components.
+- [X] **Do:** Add Tailwind CSS, shadcn/ui config, global CSS, `cn` utility, and the first required UI components.
 - **TDD suitable:** partial - Deterministic utility/config pieces can be test-driven; visual composition relies on build/manual verification.
 - **Blocked by:** F1
 - **Plan mode:** high
@@ -120,23 +124,31 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F3 - Add Router And App Layout Shell
 
-- [ ] **Do:** Add React Router, public/authenticated layouts, initial route pages, and navigation structure.
+- [X] **Do:** Add React Router, public/authenticated layouts, initial route pages, and navigation structure.
 - **TDD suitable:** partial - Routing and access behavior are testable, while layout presentation is primarily visual.
 - **Blocked by:** F2
 - **Plan mode:** medium
 - **Verification:** `cd frontend; npm run build`
 
+### F3b - Align App Shell With UI Design Spec
+
+- [X] **Do:** Bring the F3 layout shell in line with `2026-05-31-focusflow-frontend-ui-design.md`: replace the centered top nav in `AppLayout` with a left sidebar (nav links, theme toggle, user-menu placeholder), center the auth card in `PublicLayout`, add the theme provider/toggle with persisted light/dark preference, and update `--primary` / related CSS variables to the indigo–violet accent. Add shadcn components needed for the shell (e.g. `dropdown-menu`, `skeleton` if used in nav).
+- **TDD suitable:** partial - Theme preference persistence and routing/nav active state are testable; sidebar presentation is primarily visual.
+- **Blocked by:** F3
+- **Plan mode:** medium
+- **Verification:** `cd frontend; npm run build` and manual check of sidebar nav, theme toggle, and public auth layout in the browser
+
 ### F4 - Add TanStack Query And API Client Foundation
 
-- [ ] **Do:** Configure QueryClient and `api.ts` with JSON handling, credentials support, normalized errors, and an initial CSRF handling path that matches the backend contract.
+- [X] **Do:** Configure QueryClient and `api.ts` with JSON handling, credentials support, normalized errors, and an initial CSRF handling path that matches the backend contract.
 - **TDD suitable:** yes
-- **Blocked by:** F3
+- **Blocked by:** F3b
 - **Plan mode:** high
 - **Verification:** `cd frontend; npm run build`
 
 ### F5 - Define Frontend API Types
 
-- [ ] **Do:** Add TypeScript types for auth, task, plan, and error payloads based on the backend DTO contracts.
+- [X] **Do:** Add TypeScript types for auth, task, plan, and error payloads based on the backend DTO contracts.
 - **TDD suitable:** no - Static type declarations mirror contracts and are verified by typecheck/build.
 - **Blocked by:** F4 and Milestone 1 API contracts
 - **Plan mode:** medium
@@ -144,7 +156,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F6 - Implement Current User Query And Protected Routes
 
-- [ ] **Do:** Add current-user query, loading behavior, unauthenticated redirects, and protected route behavior.
+- [X] **Do:** Add current-user query, loading behavior, unauthenticated redirects, and protected route behavior.
 - **TDD suitable:** yes
 - **Blocked by:** F5
 - **Plan mode:** high
@@ -152,7 +164,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F7 - Build Login And Registration Pages
 
-- [ ] **Do:** Build login and registration forms using shadcn/ui components, auth mutations, validation display, and success redirects.
+- [X] **Do:** Build login and registration forms using shadcn/ui components, auth mutations, validation display, and success redirects.
 - **TDD suitable:** yes
 - **Blocked by:** F6
 - **Plan mode:** medium
@@ -160,7 +172,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F8 - Build Logout And Session Refresh Behavior
 
-- [ ] **Do:** Add logout action, query invalidation, and refresh-safe authenticated shell behavior.
+- [X] **Do:** Add logout action, query invalidation, and refresh-safe authenticated shell behavior.
 - **TDD suitable:** yes
 - **Blocked by:** F7
 - **Plan mode:** medium
@@ -168,7 +180,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F9 - Build Task Read View
 
-- [ ] **Do:** Add task API calls, task query hook, dashboard task list, loading state, error state, and empty state.
+- [X] **Do:** Add task API calls, task query hook, dashboard task list, loading state, error state, and empty state.
 - **TDD suitable:** yes
 - **Blocked by:** F8
 - **Plan mode:** medium
@@ -176,7 +188,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F10 - Build Task Create Form
 
-- [ ] **Do:** Add task creation UI and mutation with query invalidation after successful create.
+- [X] **Do:** Add task creation UI and mutation with query invalidation after successful create.
 - **TDD suitable:** yes
 - **Blocked by:** F9
 - **Plan mode:** medium
@@ -184,7 +196,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F11 - Build Task Edit, Status, And Delete UI
 
-- [ ] **Do:** Add edit, status update, and delete actions with confirmation or safe UI feedback where appropriate.
+- [X] **Do:** Add edit, status update, and delete actions with confirmation or safe UI feedback where appropriate.
 - **TDD suitable:** yes
 - **Blocked by:** F10
 - **Plan mode:** medium
@@ -192,7 +204,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F12 - Build Daily Plan Generation UI
 
-- [ ] **Do:** Add available focus time input, generate action, loading state, provider error display, and generated-plan rendering.
+- [X] **Do:** Add available focus time input, generate action, loading state, provider error display, and generated-plan rendering.
 - **TDD suitable:** yes
 - **Blocked by:** F11
 - **Plan mode:** medium
@@ -200,7 +212,7 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F13 - Build Plan History Page
 
-- [ ] **Do:** Add saved plan list query, history route, empty state, and links to detail pages.
+- [X] **Do:** Add saved plan list query, history route, empty state, and links to detail pages.
 - **TDD suitable:** partial - Query and routing behavior are testable; most value is in UI composition/flow checks.
 - **Blocked by:** F12
 - **Plan mode:** skip
@@ -208,19 +220,67 @@ Dependency notation: `Blocked by: F1` means start after F1 is done.
 
 ### F14 - Build Plan Detail Page
 
-- [ ] **Do:** Add saved plan detail query and display for one plan by id.
+- [X] **Do:** Add saved plan detail query and display for one plan by id.
 - **TDD suitable:** partial - Data-fetch behavior is testable; rendering details are primarily visual.
 - **Blocked by:** F13
 - **Plan mode:** skip
 - **Verification:** `cd frontend; npm run build` and manual plan detail check
 
-### F15 - Frontend Polish And Accessibility Pass
+### F15a - Shared Shell And Navigation Accessibility
 
-- [ ] **Do:** Review loading states, empty states, form labels, keyboard behavior, and common shadcn composition rules.
-- **TDD suitable:** no - Mostly visual/UX refinement validated through targeted manual checks.
+- [X] **Do:** Add skip-to-content link and verify landmarks in `AppLayout`/`PublicLayout`; audit sidebar nav, `SidebarTrigger`, `ThemeToggle`, and user menu for aria-labels, keyboard flow, and focus rings in both themes; polish `ProtectedRoute` loading state.
+- **TDD suitable:** partial - TDD slice: skip link, landmarks, and aria via RTL; manual slice: focus rings and contrast in light/dark.
+- **Blocked by:** F14
+- **Plan mode:** medium
+- **Verification:** `cd frontend; npm run build`, `cd frontend; npm test`, and manual keyboard tab-through in light/dark
+
+### F15b - Login Page Polish
+
+- [X] **Do:** Wire `aria-invalid`/`aria-describedby` in `LoginForm`, give the error alert a title, and move focus to the alert on failed submit.
+- **TDD suitable:** partial - TDD slice: aria wiring and error alert title; manual slice: focus move on failed submit.
 - **Blocked by:** F14
 - **Plan mode:** skip
-- **Verification:** `cd frontend; npm run build` and manual smoke check across all routes
+- **Verification:** `cd frontend; npm run build`, scoped `LoginForm` tests, and manual invalid-login check
+
+### F15c - Register Page Polish
+
+- [X] **Do:** Link field errors via `aria-describedby` and add error focus management in `RegisterForm` (already has `aria-invalid`).
+- **TDD suitable:** partial - TDD slice: `aria-describedby` wiring; manual slice: error focus management.
+- **Blocked by:** F14
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build`, scoped `RegisterForm` tests, and manual validation-error check
+
+### F15d - Dashboard Page Polish
+
+- [X] **Do:** Render today-plan skeleton/error instead of conflating with empty (`DashboardPage` + `DailyPlanView`); surface non-502 generate failures in `GeneratePlanCard`; add CTA to `TaskList` empty state; wire `aria-describedby` in `TaskForm`; review native select vs shadcn `select`; verify focus restore on sheet close.
+- **TDD suitable:** partial - TDD slice: today-plan loading/error, generate-error alert, empty CTA; manual slice: sheet focus restore and visuals.
+- **Blocked by:** F14
+- **Plan mode:** medium
+- **Verification:** `cd frontend; npm run build`, scoped dashboard/plan/task tests, and manual dashboard check
+
+### F15e - Plan History Page Polish
+
+- [X] **Do:** Add CTA link to `PlanHistoryList` empty state; verify skeleton/error/retry and link focus styles.
+- **TDD suitable:** partial - TDD slice: empty-state CTA and state rendering; manual slice: link focus styles.
+- **Blocked by:** F14
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build`, scoped `PlanHistoryList` tests, and manual plan history check
+
+### F15f - Plan Detail Page Polish
+
+- [X] **Do:** Restyle back links for visible focus; verify skeleton, not-found, and retry states against the UI spec.
+- **TDD suitable:** no - Visual refinement of states already built and tested in F14.
+- **Blocked by:** F14
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build` and manual plan detail check
+
+### F15g - Cross-Route Accessibility Audit And Smoke Check
+
+- [X] **Do:** Keyboard-only walkthrough of all five routes in both themes; verify labels, focus rings, contrast baseline, and toast/confirm behavior; run full suite.
+- **TDD suitable:** no - Manual audit checklist across routes.
+- **Blocked by:** F15a, F15b, F15c, F15d, F15e, F15f
+- **Plan mode:** skip
+- **Verification:** `cd frontend; npm run build`, `cd frontend; npm test`, and manual smoke check across all routes
 
 ## TDD Note For Agent Mode
 
@@ -233,3 +293,6 @@ Per subtask, obey **TDD suitable**: **`yes`** → strict **test-driven-developme
 | 2026-05-15 | Created frontend milestone plan from the original monolithic FocusFlow AI plan. |
 | 2026-05-23 | Added `TDD suitable` classification to all frontend subtasks (F1-F15). |
 | 2026-05-23 | Aligned with **writing-plans** scaffold: workflow chain, subtask field order, TDD/manual slices for partial UI work, Vitest introduction in F4, updated discovery reuse note. |
+| 2026-05-31 | Linked the new frontend UI design spec (`2026-05-31-focusflow-frontend-ui-design.md`): added UI spec references, sidebar shell + theme module file-map entries, expanded UI component inventory, and an F3 sidebar follow-up note. |
+| 2026-05-31 | Added **F3b** (align app shell with UI spec) after completed F3; F4 now blocked by F3b; removed inline F3 follow-up note. |
+| 2026-08-02 | Decomposed F15 (polish/accessibility pass) into per-page subtasks F15a-F15g after component inventory (~19 components, 5 pages + shared shell); upgraded testable state/aria slices to TDD suitable: partial. |

@@ -40,6 +40,8 @@ Gradle wrapper is included; you do not need a global Gradle install.
    OPENAI_BASE_URL=https://api.deepseek.com/v1
    ```
 
+   `.\gradlew.bat bootRun` loads the repo-root `.env` into the Spring process automatically. You do not need `echo $env:OPENAI_*` to show values in your shell; restart `bootRun` after editing `.env`. Shell or CI environment variables still take precedence when set.
+
 4. Run the backend (creates/updates schema on first local run):
 
    ```powershell
@@ -72,7 +74,7 @@ Gradle wrapper is included; you do not need a global Gradle install.
 | `OPENAI_MODEL` | Model id sent to provider | `gpt-4.1-mini` |
 | `OPENAI_BASE_URL` | OpenAI-compatible API base URL | `https://api.openai.com/v1` |
 
-Do not commit `.env`. Use `.env.example` as the template.
+Do not commit `.env`. Use `.env.example` as the template. Docker Compose and `bootRun` both read the repo-root `.env`; database settings also have matching defaults in `application.yml` when those variables are unset.
 
 ## API overview
 
