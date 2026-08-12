@@ -34,6 +34,21 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+def normalizeDotEnvValue(value) {
+	if (value.length() >= 2) {
+		if (value.startsWith('"') && value.endsWith('"')) {
+			return value.substring(1, value.length() - 1)
+		}
+		if (value.startsWith("'") && value.endsWith("'")) {
+			return value.substring(1, value.length() - 1)
+		}
+	}
+	if (value == '"' || value == "'") {
+		return null
+	}
+	return value
+}
+
 def loadRepoDotEnv() {
 	def envFile = rootProject.projectDir.parentFile.toPath().resolve('.env').toFile()
 	if (!envFile.exists()) {
@@ -54,9 +69,10 @@ def loadRepoDotEnv() {
 
 		def key = trimmed.substring(0, separatorIndex).trim()
 		def value = trimmed.substring(separatorIndex + 1).trim()
-		if ((value.startsWith('"') && value.endsWith('"'))
-				|| (value.startsWith("'") && value.endsWith("'"))) {
-			value = value.substring(1, value.length() - 1)
+		value = normalizeDotEnvValue(value)
+		if (value == null) {
+			logger.warn("Skipping malformed .env entry for key '${key}': unclosed quote")
+			return
 		}
 
 		def systemValue = System.getenv(key)
@@ -70,4 +86,15 @@ def loadRepoDotEnv() {
 
 tasks.named('bootRun') {
 	environment loadRepoDotEnv()
+}
+
+tasks.register('verifyDotEnvParser') {
+	doLast {
+		assert normalizeDotEnvValue('"') == null
+		assert normalizeDotEnvValue("'") == null
+		assert normalizeDotEnvValue('""') == ''
+		assert normalizeDotEnvValue("'x'") == 'x'
+		assert normalizeDotEnvValue('"hello"') == 'hello'
+		assert normalizeDotEnvValue('plain') == 'plain'
+	}
 }
