@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DailyPlanResponse } from '@/types/api'
 
 import {
+  plansQueryKey,
   todayPlanQueryKey,
   useGeneratePlan,
   usePlan,
@@ -103,6 +104,9 @@ describe('useGeneratePlan', () => {
     )
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: todayPlanQueryKey,
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: plansQueryKey,
     })
   })
 })

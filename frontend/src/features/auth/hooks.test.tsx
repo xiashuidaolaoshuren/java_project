@@ -150,6 +150,46 @@ describe('useLogin', () => {
     expect(result.current.currentUser.isAuthenticated).toBe(true)
     expect(result.current.location.pathname).toBe('/dashboard')
   })
+
+  it('waits for the CSRF seed query before calling login', async () => {
+    const user: UserResponse = {
+      id: 1,
+      email: 'user@example.com',
+      username: 'user',
+    }
+    mockedLogin.mockResolvedValue(user)
+
+    let resolveSeed: (value: UserResponse | null) => void
+    const seedPromise = new Promise<UserResponse | null>((resolve) => {
+      resolveSeed = resolve
+    })
+    mockedGetCurrentUser.mockReturnValue(seedPromise)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    const { result } = renderHook(() => useLogin(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate({ username: 'user', password: 'password123' })
+
+    await waitFor(() => expect(mockedGetCurrentUser).toHaveBeenCalled())
+    expect(mockedLogin).not.toHaveBeenCalled()
+
+    resolveSeed!(null)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedLogin).toHaveBeenCalledWith({
+      username: 'user',
+      password: 'password123',
+    })
+  })
 })
 
 describe('useRegister', () => {
@@ -164,6 +204,7 @@ describe('useRegister', () => {
       username: 'newuser',
     }
     mockedRegister.mockResolvedValue(user)
+    mockedGetCurrentUser.mockResolvedValue(null)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -205,6 +246,51 @@ describe('useRegister', () => {
     })
     expect(setQueryDataSpy).toHaveBeenCalledWith(currentUserQueryKey, user)
     expect(result.current.location.pathname).toBe('/dashboard')
+  })
+
+  it('waits for the CSRF seed query before calling register', async () => {
+    const user: UserResponse = {
+      id: 2,
+      email: 'new@example.com',
+      username: 'newuser',
+    }
+    mockedRegister.mockResolvedValue(user)
+
+    let resolveSeed: (value: UserResponse | null) => void
+    const seedPromise = new Promise<UserResponse | null>((resolve) => {
+      resolveSeed = resolve
+    })
+    mockedGetCurrentUser.mockReturnValue(seedPromise)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    const { result } = renderHook(() => useRegister(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate({
+      email: 'new@example.com',
+      username: 'newuser',
+      password: 'password123',
+    })
+
+    await waitFor(() => expect(mockedGetCurrentUser).toHaveBeenCalled())
+    expect(mockedRegister).not.toHaveBeenCalled()
+
+    resolveSeed!(null)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedRegister).toHaveBeenCalledWith({
+      email: 'new@example.com',
+      username: 'newuser',
+      password: 'password123',
+    })
   })
 })
 

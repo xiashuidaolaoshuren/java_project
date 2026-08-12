@@ -60,7 +60,10 @@ export function useGeneratePlan() {
     mutationFn: (request: GeneratePlanRequest) => generateDailyPlan(request),
     onSuccess: async (plan) => {
       queryClient.setQueryData(todayPlanQueryKey, plan)
-      await queryClient.invalidateQueries({ queryKey: todayPlanQueryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: todayPlanQueryKey }),
+        queryClient.invalidateQueries({ queryKey: plansQueryKey }),
+      ])
     },
   })
 }

@@ -30,6 +30,6 @@ export async function generateDailyPlan(
 ): Promise<DailyPlanResponse> {
   return apiRequest<DailyPlanResponse>('/api/daily-plans/generate', {
     method: 'POST',
-    body: request,
+    body: { planDate: getTodayDateString(), ...request },
   })
 }

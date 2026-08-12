@@ -215,3 +215,22 @@ Together: public page GET seeds the cookie; subsequent POSTs send `X-XSRF-TOKEN`
 - On Spring Security 6+, assume deferred CSRF: a 401 from an entry point does **not** imply the CSRF cookie was set.
 - A “first attempt fails, second works” auth bug is often missing CSRF on attempt 1, not wrong credentials.
 - Cover with a regression test: unauthenticated `GET /api/auth/me` must return `Set-Cookie: XSRF-TOKEN` (and a frontend test that public layout loads current user on mount).
+
+### Follow-up: residual race on fast first submit
+
+**When:** After the `PublicLayout` + `CsrfCookieFilter` fix  
+**Area:** `frontend/src/features/auth/hooks.ts`, `LoginForm.tsx`, `RegisterForm.tsx`  
+**Symptom:** A fast first login or register POST could still fail with **401** if the user submitted before the seed `GET /api/auth/me` completed. `PublicLayout` kicked off `useCurrentUser()` on mount, but forms stayed submittable while that GET was in flight.
+
+### Root cause
+
+`apiRequest` only attaches `X-XSRF-TOKEN` when the `XSRF-TOKEN` cookie already exists. The seed GET and the user's POST were independent — no coordination between them.
+
+### Fix
+
+Gate `useLogin` and `useRegister` at the mutation level: each `mutationFn` awaits `queryClient.ensureQueryData({ queryKey: currentUserQueryKey, queryFn: getCurrentUser })` before calling `login()` / `register()`. This shares the in-flight seed query started by `PublicLayout` (deduped) and blocks the POST until the cookie is set. Regression tests assert login/register are not called while the seed query is pending.
+
+### Lesson
+
+- Seeding CSRF on layout mount is necessary but not sufficient — **mutations that need the cookie must await the seed query** before POSTing.
+- Mutation-level gating is more robust than form-level disable alone (covers programmatic submits and keeps a single coordination point).

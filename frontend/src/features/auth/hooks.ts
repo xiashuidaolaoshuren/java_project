@@ -24,7 +24,13 @@ export function useLogin() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (request: LoginRequest) => login(request),
+    mutationFn: async (request: LoginRequest) => {
+      await queryClient.ensureQueryData({
+        queryKey: currentUserQueryKey,
+        queryFn: getCurrentUser,
+      })
+      return login(request)
+    },
     onSuccess: (user) => {
       queryClient.setQueryData(currentUserQueryKey, user)
       navigate('/dashboard')
@@ -37,7 +43,13 @@ export function useRegister() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (request: RegisterRequest) => register(request),
+    mutationFn: async (request: RegisterRequest) => {
+      await queryClient.ensureQueryData({
+        queryKey: currentUserQueryKey,
+        queryFn: getCurrentUser,
+      })
+      return register(request)
+    },
     onSuccess: (user) => {
       queryClient.setQueryData(currentUserQueryKey, user)
       navigate('/dashboard')

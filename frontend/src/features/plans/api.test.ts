@@ -13,9 +13,13 @@ import {
 describe('generateDailyPlan', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.useRealTimers()
   })
 
   it('generates a plan on success (201)', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-15T10:00:00'))
+
     const generated: DailyPlanResponse = {
       id: 1,
       planDate: '2026-06-15',
@@ -51,7 +55,47 @@ describe('generateDailyPlan', () => {
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
-        body: JSON.stringify({ availableMinutes: 120 }),
+        body: JSON.stringify({
+          planDate: '2026-06-15',
+          availableMinutes: 120,
+        }),
+      }),
+    )
+  })
+
+  it('uses an explicit planDate when provided', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-15T10:00:00'))
+
+    const generated: DailyPlanResponse = {
+      id: 2,
+      planDate: '2026-06-16',
+      createdAt: '2026-06-16T09:00:00Z',
+      items: [],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(generated), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      generateDailyPlan({
+        availableMinutes: 90,
+        planDate: '2026-06-16',
+      }),
+    ).resolves.toEqual(generated)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/daily-plans/generate'),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({
+          planDate: '2026-06-16',
+          availableMinutes: 90,
+        }),
       }),
     )
   })
