@@ -90,7 +90,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I3 - Verify Vite To Spring API Connectivity
 
-- [ ] **Do:** Confirm the frontend can call a backend endpoint through the chosen local strategy, either Vite proxy or explicit backend origin.
+- [X] **Do:** Confirm the frontend can call a backend endpoint through the chosen local strategy, either Vite proxy or explicit backend origin.
 - **TDD suitable:** partial - Config-only checks are manual, but any backend/frontend contract fix should be test-driven.
 - **Blocked by:** I1, I2
 - **Plan mode:** high
@@ -98,7 +98,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I4 - Verify Session Cookie Login Flow
 
-- [ ] **Do:** Register and log in through the browser, then confirm the browser stores and sends the session cookie on authenticated requests.
+- [X] **Do:** Register and log in through the browser, then confirm the browser stores and sends the session cookie on authenticated requests.
 - **TDD suitable:** partial - Browser session verification is manual, while backend auth behavior changes are testable.
 - **Blocked by:** I3
 - **Plan mode:** high
@@ -106,7 +106,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I5 - Verify CSRF And State-Changing Requests
 
-- [ ] **Do:** Confirm create/update/delete and logout requests satisfy Spring Security's CSRF behavior without disabling security broadly.
+- [X] **Do:** Confirm create/update/delete and logout requests satisfy Spring Security's CSRF behavior without disabling security broadly.
 - **TDD suitable:** partial - Manual browser checks lead, but security-rule code fixes should follow strict TDD.
 - **Blocked by:** I4
 - **Plan mode:** high
