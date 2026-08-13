@@ -20,6 +20,7 @@ import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -308,5 +309,71 @@ class PostgresIntegrationTest {
 									.extracting(i -> i.getTask().getTitle())
 									.containsExactly("Second task", "First task");
 						});
+	}
+
+	@Test
+	void listDailyPlans_initializesItemsAndNestedTasks() {
+		String suffix = UUID.randomUUID().toString().substring(0, 8);
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("list-plan-owner")
+								.withPasswordHash(
+										"$2a$10$3333333333333333333333333333333333333333333333333333333"));
+
+		Task savedFirst =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(owner)
+								.withTitle("First task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
+
+		Task savedSecond =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(owner)
+								.withTitle("Second task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
+
+		LocalDate planDate = LocalDate.of(2026, 9, 21);
+		DailyPlan plan =
+				savedPlan(
+						dailyPlanRepository,
+						DailyPlanTestBuilder.plan(owner, planDate)
+								.withCreatedAt(Instant.parse("2026-09-21T10:00:00Z"))
+								.addItem(savedSecond, 0)
+								.addItem(savedFirst, 1));
+		dailyPlanRepository.flush();
+
+		List<DailyPlan> allPlans =
+				dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId());
+		assertThat(allPlans).hasSize(1).singleElement().satisfies(
+				p -> {
+					assertThat(p.getId()).isEqualTo(plan.getId());
+					assertThat(p.getItems())
+							.extracting(DailyPlanItem::getPosition)
+							.containsExactly(0, 1);
+					assertThat(p.getItems())
+							.extracting(i -> i.getTask().getTitle())
+							.containsExactly("Second task", "First task");
+				});
+
+		List<DailyPlan> plansByDate =
+				dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(
+						owner.getId(), planDate);
+		assertThat(plansByDate).hasSize(1).singleElement().satisfies(
+				p -> {
+					assertThat(p.getId()).isEqualTo(plan.getId());
+					assertThat(p.getItems())
+							.extracting(DailyPlanItem::getPosition)
+							.containsExactly(0, 1);
+					assertThat(p.getItems())
+							.extracting(i -> i.getTask().getTitle())
+							.containsExactly("Second task", "First task");
+				});
 	}
 }

@@ -234,3 +234,80 @@ Gate `useLogin` and `useRegister` at the mutation level: each `mutationFn` await
 
 - Seeding CSRF on layout mount is necessary but not sufficient — **mutations that need the cookie must await the seed query** before POSTing.
 - Mutation-level gating is more robust than form-level disable alone (covers programmatic submits and keeps a single coordination point).
+
+---
+
+## 4. Daily plan list 500 (LazyInitializationException)
+
+**When:** Dashboard and plan history pages load saved plans  
+**Area:** `backend/src/main/java/com/focusflow/plan/DailyPlanRepository.java`, `DailyPlanService.toPlanResponse`  
+**Symptom:** Both pages showed **“Could not load plans / Something went wrong while loading your plans.”** The browser console reported `GET /api/daily-plans` **500**. Generating a new plan and opening a single plan by id still worked.
+
+### What we saw
+
+1. Log in, open `/dashboard` or `/plans`.
+2. Frontend calls `GET /api/daily-plans` (optionally with `?planDate=…`).
+3. Backend logs:
+
+```
+org.hibernate.LazyInitializationException: failed to lazily initialize a collection of role: com.focusflow.plan.DailyPlan.items: could not initialize proxy - no Session
+        at com.focusflow.plan.DailyPlanService.toPlanResponse(DailyPlanService.java:129)
+        at com.focusflow.plan.DailyPlanService.listForCurrentUser(DailyPlanService.java:84)
+        at com.focusflow.plan.DailyPlanController.list(DailyPlanController.java:30)
+```
+
+4. `POST /api/daily-plans/generate` and `GET /api/daily-plans/{id}` succeeded for the same user.
+
+### Root cause
+
+`toPlanResponse` always walks the lazy `items` collection (and each item’s lazy `task`):
+
+```java
+plan.getItems().stream()
+    .map(item -> new DailyPlanItemResponse(
+            item.getPosition(),
+            taskResponseMapper.toResponse(item.getTask())))
+```
+
+`spring.jpa.open-in-view` is **false** (intentional). `listForCurrentUser` is **not** `@Transactional`, so the Hibernate session closes when the repository method returns.
+
+Only `findByOwner_IdAndId` fetched associations:
+
+```java
+@EntityGraph(attributePaths = {"items", "items.task"})
+Optional<DailyPlan> findByOwner_IdAndId(Long ownerId, Long planId);
+
+List<DailyPlan> findByOwner_IdAndPlanDateOrderByCreatedAtDesc(...); // no graph
+List<DailyPlan> findAllByOwner_IdOrderByCreatedAtDesc(...);         // no graph
+```
+
+List endpoints therefore returned `DailyPlan` rows whose `items` proxy was uninitialized. Mapping after the session closed threw `LazyInitializationException` → 500 → the UI error banner.
+
+`generate` worked because it is `@Transactional` and maps the in-memory collection just saved. `getById` worked because of the EntityGraph.
+
+### Why existing tests missed it
+
+- `DailyPlanServiceTest` mocks the repository and returns a plain `DailyPlan` whose `items` is an initialized `ArrayList` — no Hibernate proxy.
+- `DailyPlanControllerTest` mocks `DailyPlanService` and never hits JPA.
+- `PostgresIntegrationTest` asserted item/task data only on `findByOwner_IdAndId` (the graph query). List queries only asserted plan ids, never `getItems()`.
+
+### Fix
+
+Give the two list methods the same graph as get-by-id, plus `SELECT DISTINCT` so a fetch-join of the `items` bag does not duplicate a plan once per item:
+
+```java
+@EntityGraph(attributePaths = {"items", "items.task"})
+@Query("SELECT DISTINCT p FROM DailyPlan p WHERE p.owner.id = :ownerId ORDER BY p.createdAt DESC")
+List<DailyPlan> findAllByOwner_IdOrderByCreatedAtDesc(@Param("ownerId") Long ownerId);
+```
+
+(and the matching date-filtered query). Keep `open-in-view: false`. Do not make `items` EAGER or “fix” this with `@Transactional` on the service alone — that would hide the missing fetch and add N+1 loads.
+
+Regression: `PostgresIntegrationTest.listDailyPlans_initializesItemsAndNestedTasks` persists a two-item plan, calls both list methods **outside** an extra transaction, and asserts size 1 plus readable item positions and nested task titles.
+
+### Lesson
+
+- With OSIV off, **every query that feeds a mapper must fetch the associations the mapper touches**. A graph on get-by-id does not cover list.
+- Mockito unit tests cannot catch lazy-init; you need a persistence test that accesses collections **after** the repository transaction ends.
+- Adding `@EntityGraph` on a bag collection without `SELECT DISTINCT` can return duplicate parent rows — assert list size, not only that items load.
+- Do not re-enable Open Session In View to paper over incomplete fetch graphs.
