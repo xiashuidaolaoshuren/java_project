@@ -114,7 +114,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I6 - Verify Task CRUD End To End
 
-- [ ] **Do:** Exercise create, list, read, update, status change, and delete from the browser through PostgreSQL persistence.
+- [X] **Do:** Exercise create, list, read, update, status change, and delete from the browser through PostgreSQL persistence.
 - **TDD suitable:** partial - End-to-end verification is manual; discovered backend behavior defects should be test-driven.
 - **Blocked by:** I5
 - **Plan mode:** medium
@@ -122,7 +122,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I7 - Verify Daily Plan Generation With Mocked Or Disabled Provider
 
-- [ ] **Do:** Confirm the frontend plan generation flow handles backend success, loading state, empty/invalid inputs, and provider-style errors before spending real API credits.
+- [X] **Do:** Confirm the frontend plan generation flow handles backend success, loading state, empty/invalid inputs, and provider-style errors before spending real API credits.
 - **TDD suitable:** partial - Integration checks are manual, while backend logic fixes should be implemented test-first.
 - **Blocked by:** I6
 - **Plan mode:** medium
@@ -130,7 +130,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I8 - Verify Real OpenAI Generation
 
-- [ ] **Do:** Run one manual plan generation with a real `OPENAI_API_KEY`, inspect output quality, and confirm the saved plan can be reloaded.
+- [X] **Do:** Run one manual plan generation with a real `OPENAI_API_KEY`, inspect output quality, and confirm the saved plan can be reloaded.
 - **TDD suitable:** no - Real provider smoke validation depends on external runtime behavior and manual review.
 - **Blocked by:** I7
 - **Plan mode:** high
@@ -138,7 +138,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I9 - Verify Saved Plan History And Detail Routes
 
-- [ ] **Do:** Confirm generated plans appear in history and individual plan detail pages reload correctly from backend data.
+- [X] **Do:** Confirm generated plans appear in history and individual plan detail pages reload correctly from backend data.
 - **TDD suitable:** partial - Route/query bugs are testable, but this milestone task is primarily manual verification.
 - **Blocked by:** I8
 - **Plan mode:** skip
