@@ -74,7 +74,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I1 - Verify Backend Local Startup
 
-- [ ] **Do:** Start PostgreSQL and the Spring Boot backend using documented commands. Confirm the backend boots and test profile/local profile behavior is clear.
+- [X] **Do:** Start PostgreSQL and the Spring Boot backend using documented commands. Confirm the backend boots and test profile/local profile behavior is clear.
 - **TDD suitable:** no - Runtime/environment verification task, not a behavior implementation slice.
 - **Blocked by:** Milestone 1 complete
 - **Plan mode:** medium
@@ -82,7 +82,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I2 - Verify Frontend Local Startup
 
-- [ ] **Do:** Start the Vite frontend and confirm it can render public routes before connecting full auth flow.
+- [X] **Do:** Start the Vite frontend and confirm it can render public routes before connecting full auth flow.
 - **TDD suitable:** no - Startup/smoke verification task with manual observability checks.
 - **Blocked by:** Milestone 2 complete
 - **Plan mode:** medium
