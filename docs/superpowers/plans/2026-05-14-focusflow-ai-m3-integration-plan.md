@@ -170,7 +170,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I13 - Write End-To-End README Instructions
 
-- [ ] **Do:** Update README with setup, environment variables, database startup, backend startup, frontend startup, test commands, and manual verification checklist.
+- [X] **Do:** Update README with setup, environment variables, database startup, backend startup, frontend startup, test commands, and manual verification checklist.
 - **TDD suitable:** no - Documentation-only task validated by reproducible command walkthrough.
 - **Blocked by:** I12
 - **Plan mode:** skip
@@ -178,7 +178,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I14 - Add Java Learning Map
 
-- [ ] **Do:** Add a README section mapping project packages and features to the Java/Spring concepts they teach.
+- [X] **Do:** Add a README section mapping project packages and features to the Java/Spring concepts they teach.
 - **TDD suitable:** no - Documentation/learning artifact with no runtime behavior.
 - **Blocked by:** I13
 - **Plan mode:** skip
