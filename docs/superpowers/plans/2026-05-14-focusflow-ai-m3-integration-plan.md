@@ -146,7 +146,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I10 - Verify Multi-User Isolation Manually
 
-- [ ] **Do:** Create two users and confirm tasks and plans from one user are not visible to the other.
+- [X] **Do:** Create two users and confirm tasks and plans from one user are not visible to the other.
 - **TDD suitable:** partial - Manual isolation check first; any ownership bug fix should use test-first backend coverage.
 - **Blocked by:** I9
 - **Plan mode:** high
@@ -154,7 +154,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I11 - Final Error And Empty-State Pass
 
-- [ ] **Do:** Review common failure paths: unauthenticated user, validation error, missing task/plan, OpenAI failure, and no tasks available for planning.
+- [X] **Do:** Review common failure paths: unauthenticated user, validation error, missing task/plan, OpenAI failure, and no tasks available for planning.
 - **TDD suitable:** partial - Validation is manual at integration level; backend behavior regressions should be covered by tests.
 - **Blocked by:** I10
 - **Plan mode:** medium
@@ -162,7 +162,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I12 - Full Build And Test Pass
 
-- [ ] **Do:** Run backend tests and frontend build from a clean local state.
+- [X] **Do:** Run backend tests and frontend build from a clean local state.
 - **TDD suitable:** no - Verification-only checkpoint with no direct production behavior changes.
 - **Blocked by:** I11
 - **Plan mode:** skip

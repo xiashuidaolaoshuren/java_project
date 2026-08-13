@@ -6,6 +6,7 @@ import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiPlanTask;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
+import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
@@ -55,6 +56,9 @@ public class DailyPlanService {
 		Long ownerId = currentUser.getCurrentUser().id();
 		LocalDate planDate = resolvePlanDate(request.planDate());
 		List<Task> activeTasks = taskQueryService.findOpenTasksByOwnerId(ownerId);
+		if (activeTasks.isEmpty()) {
+			throw new BadRequestException("no open tasks available for planning");
+		}
 		Map<Long, Task> taskById =
 				activeTasks.stream()
 						.collect(

@@ -358,3 +358,40 @@ Also clarified `application-test.yml` header: the test profile datasource defaul
 - **Toolchain pin ≠ system JDK.** Document that contributors need JDK 21, Foojay auto-provision, or a registered toolchain installation.
 - On Gradle 9, pin **foojay-resolver-convention ≥ 1.0.0** if auto-provisioning is used.
 - I1 verification checklist: confirm `gradlew test` green **before** assuming local PostgreSQL is required for tests.
+
+---
+
+## 6. Generate with zero OPEN tasks saves empty plan (I11)
+
+**When:** Milestone 3 integration — I11 error-path verification  
+**Area:** `backend/src/main/java/com/focusflow/plan/DailyPlanService.java`  
+**Symptom:** `POST /api/daily-plans/generate` with `{ "availableMinutes": 60 }` for a user with **no OPEN tasks** returned **201** with `items: []` and persisted an empty daily plan.
+
+### What we saw
+
+1. Register a new user (no tasks created).
+2. Call generate with valid minutes.
+3. API returned **201** and a plan id with an empty `items` array.
+4. The OpenAI provider was still invoked with an empty task list — wasted call and confusing UX (user sees a “plan” with nothing in it).
+
+### Root cause
+
+`DailyPlanService.generate` loaded open tasks via `TaskQueryService.findOpenTasksByOwnerId` but did not guard on an empty list before calling `aiClient.generate(...)`. The AI response (or empty mapping) was saved like any other plan.
+
+### Fix
+
+Reject before the provider call:
+
+```java
+if (activeTasks.isEmpty()) {
+    throw new BadRequestException("no open tasks available for planning");
+}
+```
+
+`BadRequestException` maps to **400** via `GlobalExceptionHandler`. Regression tests: `DailyPlanServiceTest.generate_whenNoOpenTasks_rejectsBeforeProviderCall` and `DailyPlanControllerTest.generate_whenNoOpenTasks_returns400WithMessage`.
+
+### Lesson
+
+- **Validate domain preconditions before expensive or external calls** (AI, payment, email).
+- Empty collections are often valid in queries but invalid for “generate from tasks” — treat that as a **400** with clear copy, not a **201** empty resource.
+- I11 manual checks should record actual status/body for edge paths; a **201** with empty `items` is a defect, not an empty-state success.
