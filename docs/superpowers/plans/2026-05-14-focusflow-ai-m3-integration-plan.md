@@ -74,7 +74,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I1 - Verify Backend Local Startup
 
-- [ ] **Do:** Start PostgreSQL and the Spring Boot backend using documented commands. Confirm the backend boots and test profile/local profile behavior is clear.
+- [X] **Do:** Start PostgreSQL and the Spring Boot backend using documented commands. Confirm the backend boots and test profile/local profile behavior is clear.
 - **TDD suitable:** no - Runtime/environment verification task, not a behavior implementation slice.
 - **Blocked by:** Milestone 1 complete
 - **Plan mode:** medium
@@ -82,7 +82,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I2 - Verify Frontend Local Startup
 
-- [ ] **Do:** Start the Vite frontend and confirm it can render public routes before connecting full auth flow.
+- [X] **Do:** Start the Vite frontend and confirm it can render public routes before connecting full auth flow.
 - **TDD suitable:** no - Startup/smoke verification task with manual observability checks.
 - **Blocked by:** Milestone 2 complete
 - **Plan mode:** medium
@@ -90,7 +90,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I3 - Verify Vite To Spring API Connectivity
 
-- [ ] **Do:** Confirm the frontend can call a backend endpoint through the chosen local strategy, either Vite proxy or explicit backend origin.
+- [X] **Do:** Confirm the frontend can call a backend endpoint through the chosen local strategy, either Vite proxy or explicit backend origin.
 - **TDD suitable:** partial - Config-only checks are manual, but any backend/frontend contract fix should be test-driven.
 - **Blocked by:** I1, I2
 - **Plan mode:** high
@@ -98,7 +98,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I4 - Verify Session Cookie Login Flow
 
-- [ ] **Do:** Register and log in through the browser, then confirm the browser stores and sends the session cookie on authenticated requests.
+- [X] **Do:** Register and log in through the browser, then confirm the browser stores and sends the session cookie on authenticated requests.
 - **TDD suitable:** partial - Browser session verification is manual, while backend auth behavior changes are testable.
 - **Blocked by:** I3
 - **Plan mode:** high
@@ -106,7 +106,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I5 - Verify CSRF And State-Changing Requests
 
-- [ ] **Do:** Confirm create/update/delete and logout requests satisfy Spring Security's CSRF behavior without disabling security broadly.
+- [X] **Do:** Confirm create/update/delete and logout requests satisfy Spring Security's CSRF behavior without disabling security broadly.
 - **TDD suitable:** partial - Manual browser checks lead, but security-rule code fixes should follow strict TDD.
 - **Blocked by:** I4
 - **Plan mode:** high
@@ -114,7 +114,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I6 - Verify Task CRUD End To End
 
-- [ ] **Do:** Exercise create, list, read, update, status change, and delete from the browser through PostgreSQL persistence.
+- [X] **Do:** Exercise create, list, read, update, status change, and delete from the browser through PostgreSQL persistence.
 - **TDD suitable:** partial - End-to-end verification is manual; discovered backend behavior defects should be test-driven.
 - **Blocked by:** I5
 - **Plan mode:** medium
@@ -122,7 +122,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I7 - Verify Daily Plan Generation With Mocked Or Disabled Provider
 
-- [ ] **Do:** Confirm the frontend plan generation flow handles backend success, loading state, empty/invalid inputs, and provider-style errors before spending real API credits.
+- [X] **Do:** Confirm the frontend plan generation flow handles backend success, loading state, empty/invalid inputs, and provider-style errors before spending real API credits.
 - **TDD suitable:** partial - Integration checks are manual, while backend logic fixes should be implemented test-first.
 - **Blocked by:** I6
 - **Plan mode:** medium
@@ -130,7 +130,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I8 - Verify Real OpenAI Generation
 
-- [ ] **Do:** Run one manual plan generation with a real `OPENAI_API_KEY`, inspect output quality, and confirm the saved plan can be reloaded.
+- [X] **Do:** Run one manual plan generation with a real `OPENAI_API_KEY`, inspect output quality, and confirm the saved plan can be reloaded.
 - **TDD suitable:** no - Real provider smoke validation depends on external runtime behavior and manual review.
 - **Blocked by:** I7
 - **Plan mode:** high
@@ -138,7 +138,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I9 - Verify Saved Plan History And Detail Routes
 
-- [ ] **Do:** Confirm generated plans appear in history and individual plan detail pages reload correctly from backend data.
+- [X] **Do:** Confirm generated plans appear in history and individual plan detail pages reload correctly from backend data.
 - **TDD suitable:** partial - Route/query bugs are testable, but this milestone task is primarily manual verification.
 - **Blocked by:** I8
 - **Plan mode:** skip
@@ -146,7 +146,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I10 - Verify Multi-User Isolation Manually
 
-- [ ] **Do:** Create two users and confirm tasks and plans from one user are not visible to the other.
+- [X] **Do:** Create two users and confirm tasks and plans from one user are not visible to the other.
 - **TDD suitable:** partial - Manual isolation check first; any ownership bug fix should use test-first backend coverage.
 - **Blocked by:** I9
 - **Plan mode:** high
@@ -154,7 +154,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I11 - Final Error And Empty-State Pass
 
-- [ ] **Do:** Review common failure paths: unauthenticated user, validation error, missing task/plan, OpenAI failure, and no tasks available for planning.
+- [X] **Do:** Review common failure paths: unauthenticated user, validation error, missing task/plan, OpenAI failure, and no tasks available for planning.
 - **TDD suitable:** partial - Validation is manual at integration level; backend behavior regressions should be covered by tests.
 - **Blocked by:** I10
 - **Plan mode:** medium
@@ -162,7 +162,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I12 - Full Build And Test Pass
 
-- [ ] **Do:** Run backend tests and frontend build from a clean local state.
+- [X] **Do:** Run backend tests and frontend build from a clean local state.
 - **TDD suitable:** no - Verification-only checkpoint with no direct production behavior changes.
 - **Blocked by:** I11
 - **Plan mode:** skip
@@ -170,7 +170,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I13 - Write End-To-End README Instructions
 
-- [ ] **Do:** Update README with setup, environment variables, database startup, backend startup, frontend startup, test commands, and manual verification checklist.
+- [X] **Do:** Update README with setup, environment variables, database startup, backend startup, frontend startup, test commands, and manual verification checklist.
 - **TDD suitable:** no - Documentation-only task validated by reproducible command walkthrough.
 - **Blocked by:** I12
 - **Plan mode:** skip
@@ -178,7 +178,7 @@ Dependency notation: `Blocked by: I1` means start after I1 is done.
 
 ### I14 - Add Java Learning Map
 
-- [ ] **Do:** Add a README section mapping project packages and features to the Java/Spring concepts they teach.
+- [X] **Do:** Add a README section mapping project packages and features to the Java/Spring concepts they teach.
 - **TDD suitable:** no - Documentation/learning artifact with no runtime behavior.
 - **Blocked by:** I13
 - **Plan mode:** skip

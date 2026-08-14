@@ -311,3 +311,87 @@ Regression: `PostgresIntegrationTest.listDailyPlans_initializesItemsAndNestedTas
 - Mockito unit tests cannot catch lazy-init; you need a persistence test that accesses collections **after** the repository transaction ends.
 - Adding `@EntityGraph` on a bag collection without `SELECT DISTINCT` can return duplicate parent rows — assert list size, not only that items load.
 - Do not re-enable Open Session In View to paper over incomplete fetch graphs.
+
+---
+
+## 5. Gradle test run fails without JDK 21 (toolchain + Gradle 9)
+
+**When:** Milestone 3 integration — I1 backend startup verification  
+**Area:** `backend/build.gradle`, `backend/settings.gradle`, local JDK install  
+**Symptom:** `cd backend; .\gradlew.bat test` failed immediately:
+
+```
+Cannot find a Java installation matching: {languageVersion=21, ...}
+Toolchain download repositories have not been configured.
+```
+
+The machine had **JDK 26** (`JAVA_HOME=C:\Program Files\Java\jdk-26.0.1`) but no JDK 21.
+
+### What we saw
+
+1. Fresh `gradlew test` on a machine with only JDK 26 installed.
+2. Gradle 9.4 wrapper + `java { toolchain { languageVersion = 21 } }` in `build.gradle`.
+3. Build failed before compilation — no tests ran.
+
+### Root cause
+
+Gradle Java toolchains require an installation that matches the requested language version (21). A newer JDK 26 on `PATH`/`JAVA_HOME` does **not** satisfy a toolchain pin to 21 unless registered or auto-provisioned.
+
+Without the Foojay toolchain resolver plugin, Gradle cannot download JDK 21 automatically.
+
+### Fix
+
+Add the Gradle 9–compatible Foojay resolver to `backend/settings.gradle`:
+
+```gradle
+plugins {
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+```
+
+Version **1.0.0** is required on Gradle 9+ (0.9.0 references removed `JvmVendorSpec.IBM_SEMERU` and crashes). After adding 1.0.0, Gradle auto-provisioned JDK 21 and `.\gradlew.bat test` passed (90 tests, 2026-08-13).
+
+Also clarified `application-test.yml` header: the test profile datasource defaults mirror dev, but `PostgresIntegrationTest` overrides them with Testcontainers — `gradlew test` needs Docker, not local PostgreSQL.
+
+### Lesson
+
+- **Toolchain pin ≠ system JDK.** Document that contributors need JDK 21, Foojay auto-provision, or a registered toolchain installation.
+- On Gradle 9, pin **foojay-resolver-convention ≥ 1.0.0** if auto-provisioning is used.
+- I1 verification checklist: confirm `gradlew test` green **before** assuming local PostgreSQL is required for tests.
+
+---
+
+## 6. Generate with zero OPEN tasks saves empty plan (I11)
+
+**When:** Milestone 3 integration — I11 error-path verification  
+**Area:** `backend/src/main/java/com/focusflow/plan/DailyPlanService.java`  
+**Symptom:** `POST /api/daily-plans/generate` with `{ "availableMinutes": 60 }` for a user with **no OPEN tasks** returned **201** with `items: []` and persisted an empty daily plan.
+
+### What we saw
+
+1. Register a new user (no tasks created).
+2. Call generate with valid minutes.
+3. API returned **201** and a plan id with an empty `items` array.
+4. The OpenAI provider was still invoked with an empty task list — wasted call and confusing UX (user sees a “plan” with nothing in it).
+
+### Root cause
+
+`DailyPlanService.generate` loaded open tasks via `TaskQueryService.findOpenTasksByOwnerId` but did not guard on an empty list before calling `aiClient.generate(...)`. The AI response (or empty mapping) was saved like any other plan.
+
+### Fix
+
+Reject before the provider call:
+
+```java
+if (activeTasks.isEmpty()) {
+    throw new BadRequestException("no open tasks available for planning");
+}
+```
+
+`BadRequestException` maps to **400** via `GlobalExceptionHandler`. Regression tests: `DailyPlanServiceTest.generate_whenNoOpenTasks_rejectsBeforeProviderCall` and `DailyPlanControllerTest.generate_whenNoOpenTasks_returns400WithMessage`.
+
+### Lesson
+
+- **Validate domain preconditions before expensive or external calls** (AI, payment, email).
+- Empty collections are often valid in queries but invalid for “generate from tasks” — treat that as a **400** with clear copy, not a **201** empty resource.
+- I11 manual checks should record actual status/body for edge paths; a **201** with empty `items` is a defect, not an empty-state success.

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.focusflow.ai.AiProviderException;
+import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.GlobalExceptionHandler;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
@@ -83,6 +84,28 @@ class DailyPlanControllerTest {
 				.andExpect(jsonPath("$.details.availableMinutes").isArray());
 
 		verify(dailyPlanService, never()).generate(any(GeneratePlanRequest.class));
+	}
+
+	@Test
+	@WithMockUser
+	void generate_whenNoOpenTasks_returns400WithMessage() throws Exception {
+		when(dailyPlanService.generate(any(GeneratePlanRequest.class)))
+				.thenThrow(new BadRequestException("no open tasks available for planning"));
+
+		mockMvc.perform(
+						post("/api/daily-plans/generate")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "availableMinutes": 60
+										}
+										"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.message").value("no open tasks available for planning"))
+				.andExpect(jsonPath("$.path").value("/api/daily-plans/generate"));
 	}
 
 	@Test

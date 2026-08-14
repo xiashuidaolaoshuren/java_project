@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import com.focusflow.ai.AiDailyPlanResponse;
 import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
+import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
@@ -96,10 +98,29 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
-	void generate_whenAiClientThrows_propagatesAiProviderException() {
+	void generate_whenNoOpenTasks_rejectsBeforeProviderCall() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of());
+
+		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessage("no open tasks available for planning");
+
+		verify(aiClient, never()).generate(any());
+		verify(dailyPlanRepository, never()).save(any());
+	}
+
+	@Test
+	void generate_whenAiClientThrows_propagatesAiProviderException() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		task.setTitle("Task 1");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.OPEN);
+		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenThrow(new AiProviderException("provider down"));
 
@@ -143,7 +164,12 @@ class DailyPlanServiceTest {
 	void generate_whenAiReturnsUnknownTaskId_throwsAiProviderException() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
-		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of());
+
+		Task task = new Task();
+		task.setTitle("Task 1");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.OPEN);
+		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(999L, 1))));
 

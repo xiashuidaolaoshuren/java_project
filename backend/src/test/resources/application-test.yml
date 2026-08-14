@@ -1,4 +1,6 @@
-# Test profile uses the same local PostgreSQL as default dev (see B2 plan).
+# Test profile: datasource defaults mirror local dev (see B2 plan).
+# PostgresIntegrationTest overrides these with Testcontainers (@DynamicPropertySource),
+# so gradlew test needs Docker — not a running local PostgreSQL instance.
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/focusflow}
