@@ -150,6 +150,10 @@ describe('TaskList', () => {
     expect(screen.queryByText('OPEN')).not.toBeInTheDocument()
     expect(screen.getByText('2026-06-15')).toBeInTheDocument()
     expect(screen.getByText('60 min')).toBeInTheDocument()
+    expect(document.querySelector('[data-meta="priority"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-meta="status"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-meta="dueDate"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
   })
 
   it('calls update mutation when quick status changes', () => {

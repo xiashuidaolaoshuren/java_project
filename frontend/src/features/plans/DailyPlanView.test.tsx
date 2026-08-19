@@ -50,12 +50,18 @@ describe('DailyPlanView', () => {
     expect(items[0]).toHaveTextContent('Open')
     expect(items[0].querySelector('[data-priority="HIGH"]')).toBeInTheDocument()
     expect(items[0].querySelector('[data-status="OPEN"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-meta="priority"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-meta="status"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
     expect(items[1]).toHaveTextContent('Review pull requests')
     expect(items[1]).toHaveTextContent('30 min')
     expect(items[1]).toHaveTextContent('Medium')
     expect(items[1]).toHaveTextContent('Open')
     expect(items[1].querySelector('[data-priority="MEDIUM"]')).toBeInTheDocument()
     expect(items[1].querySelector('[data-status="OPEN"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-meta="priority"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-meta="status"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
   })
 
   it('shows empty fallback when no plan is available', () => {

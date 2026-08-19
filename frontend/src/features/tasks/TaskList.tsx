@@ -1,4 +1,4 @@
-import { ListTodoIcon } from 'lucide-react'
+import { CalendarIcon, CircleDotIcon, ClockIcon, FlagIcon, ListTodoIcon } from 'lucide-react'
 
 import {
   Alert,
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TaskActions } from '@/features/tasks/TaskActions'
 import { PriorityBadge } from '@/features/tasks/PriorityBadge'
 import { StatusBadge } from '@/features/tasks/StatusBadge'
+import { TaskMetaItem } from '@/features/tasks/TaskMetaItem'
 import { useDeleteTask, useTasks, useUpdateTask } from '@/features/tasks/hooks'
 import type { TaskResponse, TaskStatus, UpdateTaskRequest } from '@/types/api'
 
@@ -69,11 +70,19 @@ function TaskRow({
             isDeleting={isDeleting}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <PriorityBadge priority={task.priority} />
-          <StatusBadge status={task.status} />
-          <span>{formatDueDate(task.dueDate)}</span>
-          <span>{formatEstimatedMinutes(task.estimatedMinutes)}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <TaskMetaItem category="priority" icon={FlagIcon}>
+            <PriorityBadge priority={task.priority} />
+          </TaskMetaItem>
+          <TaskMetaItem category="status" icon={CircleDotIcon}>
+            <StatusBadge status={task.status} />
+          </TaskMetaItem>
+          <TaskMetaItem category="dueDate" icon={CalendarIcon}>
+            {formatDueDate(task.dueDate)}
+          </TaskMetaItem>
+          <TaskMetaItem category="estimatedMinutes" icon={ClockIcon}>
+            {formatEstimatedMinutes(task.estimatedMinutes)}
+          </TaskMetaItem>
         </div>
       </CardContent>
     </Card>

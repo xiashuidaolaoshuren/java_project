@@ -1,3 +1,5 @@
+import { CircleDotIcon, ClockIcon, FlagIcon } from 'lucide-react'
+
 import {
   Card,
   CardContent,
@@ -16,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import type { DailyPlanResponse } from '@/types/api'
 import { PriorityBadge } from '@/features/tasks/PriorityBadge'
 import { StatusBadge } from '@/features/tasks/StatusBadge'
+import { TaskMetaItem } from '@/features/tasks/TaskMetaItem'
 
 type DailyPlanViewProps = {
   plan: DailyPlanResponse | null
@@ -111,12 +114,16 @@ export function DailyPlanView({
               className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
             >
               <span className="font-medium">{item.task.title}</span>
-              <div className="flex shrink-0 items-center gap-2">
-                <PriorityBadge priority={item.task.priority} />
-                <StatusBadge status={item.task.status} />
-                <span className="text-sm text-muted-foreground">
+              <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <TaskMetaItem category="priority" icon={FlagIcon}>
+                  <PriorityBadge priority={item.task.priority} />
+                </TaskMetaItem>
+                <TaskMetaItem category="status" icon={CircleDotIcon}>
+                  <StatusBadge status={item.task.status} />
+                </TaskMetaItem>
+                <TaskMetaItem category="estimatedMinutes" icon={ClockIcon}>
                   {item.task.estimatedMinutes ?? 0} min
-                </span>
+                </TaskMetaItem>
               </div>
             </li>
           ))}
