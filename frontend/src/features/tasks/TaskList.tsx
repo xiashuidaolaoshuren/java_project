@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TaskActions } from '@/features/tasks/TaskActions'
+import { PriorityBadge } from '@/features/tasks/PriorityBadge'
+import { StatusBadge } from '@/features/tasks/StatusBadge'
 import { useDeleteTask, useTasks, useUpdateTask } from '@/features/tasks/hooks'
 import type { TaskResponse, TaskStatus, UpdateTaskRequest } from '@/types/api'
 
@@ -67,9 +69,9 @@ function TaskRow({
             isDeleting={isDeleting}
           />
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <span>{task.priority}</span>
-          <span>{task.status}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <PriorityBadge priority={task.priority} />
+          <StatusBadge status={task.status} />
           <span>{formatDueDate(task.dueDate)}</span>
           <span>{formatEstimatedMinutes(task.estimatedMinutes)}</span>
         </div>

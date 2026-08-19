@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { DailyPlanResponse } from '@/types/api'
+import { PriorityBadge } from '@/features/tasks/PriorityBadge'
+import { StatusBadge } from '@/features/tasks/StatusBadge'
 
 type DailyPlanViewProps = {
   plan: DailyPlanResponse | null
@@ -106,12 +108,16 @@ export function DailyPlanView({
           {sortedItems.map((item) => (
             <li
               key={`${item.position}-${item.task.id}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
             >
               <span className="font-medium">{item.task.title}</span>
-              <span className="text-sm text-muted-foreground">
-                {item.task.estimatedMinutes ?? 0} min
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <PriorityBadge priority={item.task.priority} />
+                <StatusBadge status={item.task.status} />
+                <span className="text-sm text-muted-foreground">
+                  {item.task.estimatedMinutes ?? 0} min
+                </span>
+              </div>
             </li>
           ))}
         </ol>
