@@ -1,3 +1,5 @@
+import { CircleDotIcon, ClockIcon, FlagIcon } from 'lucide-react'
+
 import {
   Card,
   CardContent,
@@ -14,6 +16,9 @@ import {
 } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { DailyPlanResponse } from '@/types/api'
+import { PriorityBadge } from '@/features/tasks/PriorityBadge'
+import { StatusBadge } from '@/features/tasks/StatusBadge'
+import { TaskMetaItem } from '@/features/tasks/TaskMetaItem'
 
 type DailyPlanViewProps = {
   plan: DailyPlanResponse | null
@@ -106,12 +111,20 @@ export function DailyPlanView({
           {sortedItems.map((item) => (
             <li
               key={`${item.position}-${item.task.id}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-border px-3 py-2"
             >
-              <span className="font-medium">{item.task.title}</span>
-              <span className="text-sm text-muted-foreground">
-                {item.task.estimatedMinutes ?? 0} min
-              </span>
+              <span className="min-w-0 font-medium">{item.task.title}</span>
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                <TaskMetaItem category="priority" icon={FlagIcon}>
+                  <PriorityBadge priority={item.task.priority} />
+                </TaskMetaItem>
+                <TaskMetaItem category="status" icon={CircleDotIcon}>
+                  <StatusBadge status={item.task.status} />
+                </TaskMetaItem>
+                <TaskMetaItem category="estimatedMinutes" icon={ClockIcon}>
+                  {item.task.estimatedMinutes ?? 0} min
+                </TaskMetaItem>
+              </div>
             </li>
           ))}
         </ol>

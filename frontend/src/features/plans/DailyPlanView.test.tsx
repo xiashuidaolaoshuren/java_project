@@ -46,8 +46,33 @@ describe('DailyPlanView', () => {
     expect(items).toHaveLength(2)
     expect(items[0]).toHaveTextContent('Write tests')
     expect(items[0]).toHaveTextContent('45 min')
+    expect(items[0]).toHaveTextContent('High')
+    expect(items[0]).toHaveTextContent('Open')
+    expect(items[0].querySelector('[data-priority="HIGH"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-status="OPEN"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-meta="priority"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-meta="status"]')).toBeInTheDocument()
+    expect(items[0].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
     expect(items[1]).toHaveTextContent('Review pull requests')
     expect(items[1]).toHaveTextContent('30 min')
+    expect(items[1]).toHaveTextContent('Medium')
+    expect(items[1]).toHaveTextContent('Open')
+    expect(items[1].querySelector('[data-priority="MEDIUM"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-status="OPEN"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-meta="priority"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-meta="status"]')).toBeInTheDocument()
+    expect(items[1].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
+
+    for (const item of items) {
+      expect(item).toHaveClass('flex-wrap')
+      const title = item.querySelector('.font-medium')
+      expect(title).toHaveClass('min-w-0')
+      const metaCluster = item.querySelector('[data-meta="priority"]')?.parentElement
+      expect(metaCluster).toBeInTheDocument()
+      expect(metaCluster).not.toHaveClass('shrink-0')
+      expect(metaCluster).toHaveClass('min-w-0')
+      expect(metaCluster).toHaveClass('justify-end')
+    }
   })
 
   it('shows empty fallback when no plan is available', () => {

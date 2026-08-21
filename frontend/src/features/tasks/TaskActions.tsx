@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { TaskResponse, TaskStatus } from '@/types/api'
+import { STATUS_LABELS } from '@/features/tasks/labels'
 
 const TASK_STATUSES: TaskStatus[] = [
   'OPEN',
@@ -26,13 +27,6 @@ const TASK_STATUSES: TaskStatus[] = [
   'DONE',
   'CANCELLED',
 ]
-
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  OPEN: 'Open',
-  IN_PROGRESS: 'In progress',
-  DONE: 'Done',
-  CANCELLED: 'Cancelled',
-}
 
 type TaskActionsProps = {
   task: TaskResponse
