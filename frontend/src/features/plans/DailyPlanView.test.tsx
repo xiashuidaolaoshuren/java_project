@@ -62,6 +62,17 @@ describe('DailyPlanView', () => {
     expect(items[1].querySelector('[data-meta="priority"]')).toBeInTheDocument()
     expect(items[1].querySelector('[data-meta="status"]')).toBeInTheDocument()
     expect(items[1].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
+
+    for (const item of items) {
+      expect(item).toHaveClass('flex-wrap')
+      const title = item.querySelector('.font-medium')
+      expect(title).toHaveClass('min-w-0')
+      const metaCluster = item.querySelector('[data-meta="priority"]')?.parentElement
+      expect(metaCluster).toBeInTheDocument()
+      expect(metaCluster).not.toHaveClass('shrink-0')
+      expect(metaCluster).toHaveClass('min-w-0')
+      expect(metaCluster).toHaveClass('justify-end')
+    }
   })
 
   it('shows empty fallback when no plan is available', () => {
