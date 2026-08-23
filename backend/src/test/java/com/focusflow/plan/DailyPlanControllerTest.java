@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -266,6 +267,37 @@ class DailyPlanControllerTest {
 				.thenThrow(new NotFoundException("daily plan not found"));
 
 		mockMvc.perform(get("/api/daily-plans/99"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.status").value(404))
+				.andExpect(jsonPath("$.message").value("daily plan not found"))
+				.andExpect(jsonPath("$.path").value("/api/daily-plans/99"));
+	}
+
+	@Test
+	void delete_whenUnauthenticated_returns401() throws Exception {
+		mockMvc.perform(delete("/api/daily-plans/1").with(csrf()))
+				.andExpect(status().isUnauthorized());
+
+		verify(dailyPlanService, never()).deleteForCurrentUser(1L);
+	}
+
+	@Test
+	@WithMockUser
+	void delete_whenAuthenticated_returns204() throws Exception {
+		mockMvc.perform(delete("/api/daily-plans/1").with(csrf()))
+				.andExpect(status().isNoContent());
+
+		verify(dailyPlanService).deleteForCurrentUser(1L);
+	}
+
+	@Test
+	@WithMockUser
+	void delete_whenNotFound_returns404WithStandardBody() throws Exception {
+		org.mockito.Mockito.doThrow(new NotFoundException("daily plan not found"))
+				.when(dailyPlanService)
+				.deleteForCurrentUser(99L);
+
+		mockMvc.perform(delete("/api/daily-plans/99").with(csrf()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.status").value(404))
 				.andExpect(jsonPath("$.message").value("daily plan not found"))

@@ -376,4 +376,53 @@ class PostgresIntegrationTest {
 							.containsExactly("Second task", "First task");
 				});
 	}
+
+	@Test
+	void deleteDailyPlan_removesItemsAndLeavesTasks() {
+		String suffix = UUID.randomUUID().toString().substring(0, 8);
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("delete-plan-owner")
+								.withPasswordHash(
+										"$2a$10$4444444444444444444444444444444444444444444444444444444"));
+
+		Task savedFirst =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(owner)
+								.withTitle("First task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
+
+		Task savedSecond =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(owner)
+								.withTitle("Second task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
+
+		DailyPlan plan =
+				savedPlan(
+						dailyPlanRepository,
+						DailyPlanTestBuilder.plan(owner, LocalDate.of(2026, 9, 22))
+								.withCreatedAt(Instant.parse("2026-09-22T10:00:00Z"))
+								.addItem(savedFirst, 1)
+								.addItem(savedSecond, 2));
+		Long planId = plan.getId();
+		dailyPlanRepository.flush();
+
+		dailyPlanRepository.delete(plan);
+		dailyPlanRepository.flush();
+
+		assertThat(dailyPlanRepository.findByOwner_IdAndId(owner.getId(), planId)).isEmpty();
+		assertThat(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId()))
+				.isEmpty();
+		assertThat(taskRepository.findByOwner_IdOrderByDueDateAsc(owner.getId()))
+				.extracting(Task::getId)
+				.containsExactly(savedFirst.getId(), savedSecond.getId());
+	}
 }

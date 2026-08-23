@@ -89,12 +89,19 @@ public class DailyPlanService {
 	}
 
 	public DailyPlanResponse getForCurrentUser(Long planId) {
+		return toPlanResponse(loadPlanForCurrentUser(planId));
+	}
+
+	@Transactional
+	public void deleteForCurrentUser(Long planId) {
+		dailyPlanRepository.delete(loadPlanForCurrentUser(planId));
+	}
+
+	private DailyPlan loadPlanForCurrentUser(Long planId) {
 		Long ownerId = currentUser.getCurrentUser().id();
-		DailyPlan plan =
-				dailyPlanRepository
-						.findByOwner_IdAndId(ownerId, planId)
-						.orElseThrow(() -> new NotFoundException("daily plan not found"));
-		return toPlanResponse(plan);
+		return dailyPlanRepository
+				.findByOwner_IdAndId(ownerId, planId)
+				.orElseThrow(() -> new NotFoundException("daily plan not found"));
 	}
 
 	private void validateAiItems(List<AiPlanItem> aiItems, Map<Long, Task> taskById) {

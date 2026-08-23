@@ -243,4 +243,31 @@ class DailyPlanServiceTest {
 				.isInstanceOf(NotFoundException.class)
 				.hasMessage("daily plan not found");
 	}
+
+	@Test
+	void deleteForCurrentUser_whenOwned_deletesPlan() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		DailyPlan plan = new DailyPlan();
+		plan.setPlanDate(LocalDate.of(2026, 6, 1));
+		when(dailyPlanRepository.findByOwner_IdAndId(42L, 7L)).thenReturn(Optional.of(plan));
+
+		dailyPlanService.deleteForCurrentUser(7L);
+
+		verify(dailyPlanRepository).delete(plan);
+	}
+
+	@Test
+	void deleteForCurrentUser_whenMissing_throwsNotFoundException() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+		when(dailyPlanRepository.findByOwner_IdAndId(42L, 99L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> dailyPlanService.deleteForCurrentUser(99L))
+				.isInstanceOf(NotFoundException.class)
+				.hasMessage("daily plan not found");
+
+		verify(dailyPlanRepository, never()).delete(any(DailyPlan.class));
+	}
 }
