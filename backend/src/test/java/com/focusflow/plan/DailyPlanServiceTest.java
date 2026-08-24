@@ -36,6 +36,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.mockito.Spy;
 
 @ExtendWith(MockitoExtension.class)
 class DailyPlanServiceTest {
@@ -55,6 +57,9 @@ class DailyPlanServiceTest {
 	@Mock
 	private DailyPlanRepository dailyPlanRepository;
 
+	@Spy
+	private DailyPlanRankingValidator rankingValidator = new DailyPlanRankingValidator();
+
 	private final TaskResponseMapper taskResponseMapper = new TaskResponseMapper();
 
 	private DailyPlanService dailyPlanService;
@@ -68,7 +73,8 @@ class DailyPlanServiceTest {
 						userRepository,
 						currentUser,
 						dailyPlanRepository,
-						taskResponseMapper);
+						taskResponseMapper,
+						rankingValidator);
 	}
 
 	@Test
@@ -112,17 +118,46 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
+	void generate_delegatesToRankingValidator() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		task.setPriority(TaskPriority.MEDIUM);
+		task.setEstimatedMinutes(30);
+
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
+
+		User owner = new User();
+		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
+		when(dailyPlanRepository.save(any(DailyPlan.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		dailyPlanService.generate(new GeneratePlanRequest(120, planDate));
+
+		verify(rankingValidator)
+				.validate(List.of(task), planDate, 120, List.of(new AiPlanItem(1L, 1)));
+	}
+
+	@Test
 	void generate_whenOnlyInProgressTasks_callsProvider() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
 		task.setTitle("Continue work");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.IN_PROGRESS);
 		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
-				.thenReturn(new AiDailyPlanResponse(List.of()));
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
 		User owner = new User();
 		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
@@ -187,6 +222,26 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
+	void generate_whenRankingValidationFails_doesNotSave() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of()));
+
+		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
+				.isInstanceOf(AiProviderException.class);
+
+		verify(dailyPlanRepository, never()).save(any());
+	}
+
+	@Test
 	void generate_whenAiReturnsUnknownTaskId_throwsAiProviderException() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
@@ -201,6 +256,8 @@ class DailyPlanServiceTest {
 
 		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
 				.isInstanceOf(AiProviderException.class);
+
+		verify(dailyPlanRepository, never()).save(any());
 	}
 
 	@Test

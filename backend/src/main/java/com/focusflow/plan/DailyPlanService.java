@@ -4,7 +4,6 @@ import com.focusflow.ai.AiDailyPlanRequest;
 import com.focusflow.ai.AiDailyPlanResponse;
 import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiPlanTask;
-import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.NotFoundException;
@@ -35,6 +34,7 @@ public class DailyPlanService {
 	private final CurrentUser currentUser;
 	private final DailyPlanRepository dailyPlanRepository;
 	private final TaskResponseMapper taskResponseMapper;
+	private final DailyPlanRankingValidator rankingValidator;
 
 	public DailyPlanService(
 			DailyPlanAiClient aiClient,
@@ -42,13 +42,15 @@ public class DailyPlanService {
 			UserRepository userRepository,
 			CurrentUser currentUser,
 			DailyPlanRepository dailyPlanRepository,
-			TaskResponseMapper taskResponseMapper) {
+			TaskResponseMapper taskResponseMapper,
+			DailyPlanRankingValidator rankingValidator) {
 		this.aiClient = aiClient;
 		this.taskQueryService = taskQueryService;
 		this.userRepository = userRepository;
 		this.currentUser = currentUser;
 		this.dailyPlanRepository = dailyPlanRepository;
 		this.taskResponseMapper = taskResponseMapper;
+		this.rankingValidator = rankingValidator;
 	}
 
 	@Transactional
@@ -69,7 +71,8 @@ public class DailyPlanService {
 		List<AiPlanTask> aiTasks = activeTasks.stream().map(this::toAiPlanTask).toList();
 		AiDailyPlanResponse aiResponse =
 				aiClient.generate(new AiDailyPlanRequest(aiTasks, request.availableMinutes()));
-		validateAiItems(aiResponse.items(), taskById);
+		rankingValidator.validate(
+				activeTasks, planDate, request.availableMinutes(), aiResponse.items());
 		User owner =
 				userRepository
 						.findById(ownerId)
@@ -102,15 +105,6 @@ public class DailyPlanService {
 		return dailyPlanRepository
 				.findByOwner_IdAndId(ownerId, planId)
 				.orElseThrow(() -> new NotFoundException("daily plan not found"));
-	}
-
-	private void validateAiItems(List<AiPlanItem> aiItems, Map<Long, Task> taskById) {
-		for (AiPlanItem aiItem : aiItems) {
-			if (!taskById.containsKey(aiItem.taskId())) {
-				throw new AiProviderException(
-						"invalid task id in AI response: " + aiItem.taskId());
-			}
-		}
 	}
 
 	private DailyPlan buildPlan(
