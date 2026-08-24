@@ -33,3 +33,9 @@ export async function generateDailyPlan(
     body: { planDate: getTodayDateString(), ...request },
   })
 }
+
+export async function deletePlan(id: number): Promise<void> {
+  return apiRequest<void>(`/api/daily-plans/${id}`, {
+    method: 'DELETE',
+  })
+}

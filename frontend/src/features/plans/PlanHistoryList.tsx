@@ -1,5 +1,6 @@
 import { CalendarDaysIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import {
   Alert,
@@ -9,6 +10,8 @@ import {
 } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PlanDeleteButton } from '@/features/plans/PlanDeleteButton'
+import { useDeletePlan } from '@/features/plans/hooks'
 import type { DailyPlanResponse } from '@/types/api'
 
 type PlanHistoryListProps = {
@@ -61,6 +64,16 @@ export function PlanHistoryList({
   isError,
   onRetry,
 }: PlanHistoryListProps) {
+  const { mutate: deletePlan, isPending: isDeleting } = useDeletePlan()
+
+  function handleDelete(plan: DailyPlanResponse) {
+    deletePlan(plan.id, {
+      onSuccess: () => {
+        toast.success('Plan deleted')
+      },
+    })
+  }
+
   if (isLoading) {
     return <PlanHistoryListSkeleton />
   }
@@ -86,16 +99,25 @@ export function PlanHistoryList({
   return (
     <ul className="flex flex-col gap-3">
       {plans.map((plan) => (
-        <li key={plan.id}>
+        <li
+          key={plan.id}
+          className="flex items-center gap-1 rounded-xl border border-border px-2 py-1"
+        >
           <Link
             to={`/plans/${plan.id}`}
-            className="flex items-center justify-between rounded-xl border border-border px-4 py-3 transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="flex flex-1 items-center justify-between rounded-lg px-2 py-2 transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <span className="font-medium">{plan.planDate}</span>
             <span className="text-sm text-muted-foreground">
               {formatItemCount(plan.items.length)}
             </span>
           </Link>
+          <PlanDeleteButton
+            plan={plan}
+            variant="icon"
+            isDeleting={isDeleting}
+            onConfirm={() => handleDelete(plan)}
+          />
         </li>
       ))}
     </ul>

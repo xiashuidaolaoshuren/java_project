@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import {
   Alert,
@@ -9,7 +10,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DailyPlanView } from '@/features/plans/DailyPlanView'
-import { usePlan } from '@/features/plans/hooks'
+import { PlanDeleteButton } from '@/features/plans/PlanDeleteButton'
+import { useDeletePlan, usePlan } from '@/features/plans/hooks'
 import { ApiError } from '@/lib/api'
 
 const backLinkClassName =
@@ -54,9 +56,24 @@ function PlanNotFoundState() {
 }
 
 export function PlanDetailPage() {
+  const navigate = useNavigate()
   const { id: idParam } = useParams<{ id: string }>()
   const planId = parsePlanId(idParam)
   const { plan, isPending, isError, error, refetch } = usePlan(planId)
+  const { mutate: deletePlan, isPending: isDeleting } = useDeletePlan()
+
+  function handleDelete() {
+    if (plan == null) {
+      return
+    }
+
+    deletePlan(plan.id, {
+      onSuccess: () => {
+        toast.success('Plan deleted')
+        navigate('/plans')
+      },
+    })
+  }
 
   if (!Number.isInteger(planId) || planId <= 0) {
     return <PlanNotFoundState />
@@ -88,11 +105,21 @@ export function PlanDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Plan detail</h1>
-        <p className="text-sm text-muted-foreground">
-          Saved plan for {plan?.planDate ?? 'unknown date'}.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Plan detail</h1>
+          <p className="text-sm text-muted-foreground">
+            Saved plan for {plan?.planDate ?? 'unknown date'}.
+          </p>
+        </div>
+        {plan != null && (
+          <PlanDeleteButton
+            plan={plan}
+            variant="text"
+            isDeleting={isDeleting}
+            onConfirm={handleDelete}
+          />
+        )}
       </div>
       <DailyPlanView plan={plan} title={`Plan for ${plan?.planDate ?? ''}`} />
       <Link to="/plans" className={backLinkClassName}>

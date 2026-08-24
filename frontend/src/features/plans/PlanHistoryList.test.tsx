@@ -1,10 +1,19 @@
 import type { ComponentProps } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PlanHistoryList } from '@/features/plans/PlanHistoryList'
 import type { DailyPlanResponse } from '@/types/api'
+
+vi.mock('@/features/plans/hooks', () => ({
+  useDeletePlan: vi.fn(),
+}))
+
+import { useDeletePlan } from '@/features/plans/hooks'
+
+const mockedUseDeletePlan = vi.mocked(useDeletePlan)
 
 const samplePlans: DailyPlanResponse[] = [
   {
@@ -44,14 +53,26 @@ function renderPlanHistoryList(
     onRetry: vi.fn(),
   }
 
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
   return render(
-    <MemoryRouter>
-      <PlanHistoryList {...defaultProps} {...props} />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <PlanHistoryList {...defaultProps} {...props} />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
 describe('PlanHistoryList', () => {
+  beforeEach(() => {
+    mockedUseDeletePlan.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useDeletePlan>)
+  })
   it('renders a link per plan showing plan date and item count', () => {
     renderPlanHistoryList()
 
@@ -85,5 +106,30 @@ describe('PlanHistoryList', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
     expect(onRetry).toHaveBeenCalled()
+  })
+
+  it('calls delete mutation only after confirmation', async () => {
+    const deleteMutate = vi.fn()
+    mockedUseDeletePlan.mockReturnValue({
+      mutate: deleteMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useDeletePlan>)
+
+    renderPlanHistoryList()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /delete plan for 2026-06-14/i }),
+    )
+
+    expect(deleteMutate).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('alertdialog', { name: /delete plan/i }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^delete plan$/i }))
+    expect(deleteMutate).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    )
   })
 })
