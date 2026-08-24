@@ -32,4 +32,20 @@ class TaskQueryServiceTest {
 		verify(taskRepository).findByOwner_IdAndStatusOrderByDueDateAsc(42L, TaskStatus.OPEN);
 		assertThat(tasks).singleElement().satisfies(t -> assertThat(t.getTitle()).isEqualTo("Open task"));
 	}
+
+	@Test
+	void findPlannableTasksByOwnerId_delegatesToRepositoryWithOpenAndInProgress() {
+		Task task = new Task();
+		task.setTitle("Plannable task");
+		when(taskRepository.findByOwner_IdAndStatusInOrderByDueDateAsc(
+						42L, List.of(TaskStatus.OPEN, TaskStatus.IN_PROGRESS)))
+				.thenReturn(List.of(task));
+
+		List<Task> tasks = taskQueryService.findPlannableTasksByOwnerId(42L);
+
+		verify(taskRepository)
+				.findByOwner_IdAndStatusInOrderByDueDateAsc(
+						42L, List.of(TaskStatus.OPEN, TaskStatus.IN_PROGRESS));
+		assertThat(tasks).singleElement().satisfies(t -> assertThat(t.getTitle()).isEqualTo("Plannable task"));
+	}
 }
