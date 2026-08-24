@@ -89,9 +89,9 @@ class DailyPlanControllerTest {
 
 	@Test
 	@WithMockUser
-	void generate_whenNoOpenTasks_returns400WithMessage() throws Exception {
+	void generate_whenNoPlannableTasks_returns400WithMessage() throws Exception {
 		when(dailyPlanService.generate(any(GeneratePlanRequest.class)))
-				.thenThrow(new BadRequestException("no open tasks available for planning"));
+				.thenThrow(new BadRequestException("no plannable tasks available for planning"));
 
 		mockMvc.perform(
 						post("/api/daily-plans/generate")
@@ -105,7 +105,7 @@ class DailyPlanControllerTest {
 										"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.status").value(400))
-				.andExpect(jsonPath("$.message").value("no open tasks available for planning"))
+				.andExpect(jsonPath("$.message").value("no plannable tasks available for planning"))
 				.andExpect(jsonPath("$.path").value("/api/daily-plans/generate"));
 	}
 

@@ -55,9 +55,9 @@ public class DailyPlanService {
 	public DailyPlanResponse generate(GeneratePlanRequest request) {
 		Long ownerId = currentUser.getCurrentUser().id();
 		LocalDate planDate = resolvePlanDate(request.planDate());
-		List<Task> activeTasks = taskQueryService.findOpenTasksByOwnerId(ownerId);
+		List<Task> activeTasks = taskQueryService.findPlannableTasksByOwnerId(ownerId);
 		if (activeTasks.isEmpty()) {
-			throw new BadRequestException("no open tasks available for planning");
+			throw new BadRequestException("no plannable tasks available for planning");
 		}
 		Map<Long, Task> taskById =
 				activeTasks.stream()

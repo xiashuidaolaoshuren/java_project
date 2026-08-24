@@ -80,7 +80,7 @@ class DailyPlanServiceTest {
 		task.setTitle("Write tests");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
-		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of()));
 
@@ -98,17 +98,43 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
-	void generate_whenNoOpenTasks_rejectsBeforeProviderCall() {
+	void generate_whenNoPlannableTasks_rejectsBeforeProviderCall() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
-		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of());
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of());
 
 		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
 				.isInstanceOf(BadRequestException.class)
-				.hasMessage("no open tasks available for planning");
+				.hasMessage("no plannable tasks available for planning");
 
 		verify(aiClient, never()).generate(any());
 		verify(dailyPlanRepository, never()).save(any());
+	}
+
+	@Test
+	void generate_whenOnlyInProgressTasks_callsProvider() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		task.setTitle("Continue work");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of()));
+
+		User owner = new User();
+		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
+		when(dailyPlanRepository.save(any(DailyPlan.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		dailyPlanService.generate(new GeneratePlanRequest(90, null));
+
+		ArgumentCaptor<AiDailyPlanRequest> captor = ArgumentCaptor.forClass(AiDailyPlanRequest.class);
+		verify(aiClient).generate(captor.capture());
+		assertThat(captor.getValue().tasks()).hasSize(1);
+		assertThat(captor.getValue().tasks().getFirst().status()).isEqualTo(TaskStatus.IN_PROGRESS);
 	}
 
 	@Test
@@ -120,7 +146,7 @@ class DailyPlanServiceTest {
 		task.setTitle("Task 1");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
-		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenThrow(new AiProviderException("provider down"));
 
@@ -138,7 +164,7 @@ class DailyPlanServiceTest {
 		task.setTitle("Task 1");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
-		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
 
 		AiPlanItem aiItem = new AiPlanItem(task.getId() != null ? task.getId() : 0L, 1);
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
@@ -169,7 +195,7 @@ class DailyPlanServiceTest {
 		task.setTitle("Task 1");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
-		when(taskQueryService.findOpenTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(999L, 1))));
 
