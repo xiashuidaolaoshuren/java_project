@@ -4,6 +4,7 @@ import type { DailyPlanResponse } from '@/types/api'
 
 import { ApiError } from '@/lib/api'
 import {
+  deletePlan,
   generateDailyPlan,
   getPlanById,
   getTodayPlan,
@@ -24,6 +25,8 @@ describe('generateDailyPlan', () => {
       id: 1,
       planDate: '2026-06-15',
       createdAt: '2026-06-15T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [
         {
           position: 1,
@@ -71,6 +74,8 @@ describe('generateDailyPlan', () => {
       id: 2,
       planDate: '2026-06-16',
       createdAt: '2026-06-16T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [],
     }
     const fetchMock = vi.fn().mockResolvedValue(
@@ -115,6 +120,8 @@ describe('getTodayPlan', () => {
       id: 1,
       planDate: '2026-06-15',
       createdAt: '2026-06-15T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [],
     }
     const fetchMock = vi.fn().mockResolvedValue(
@@ -161,6 +168,8 @@ describe('listPlans', () => {
         id: 1,
         planDate: '2026-06-14',
         createdAt: '2026-06-14T09:00:00Z',
+        availableMinutes: null,
+        warning: null,
         items: [
           {
             position: 1,
@@ -180,6 +189,8 @@ describe('listPlans', () => {
         id: 2,
         planDate: '2026-06-15',
         createdAt: '2026-06-15T09:00:00Z',
+        availableMinutes: null,
+        warning: null,
         items: [],
       },
     ]
@@ -209,6 +220,8 @@ describe('getPlanById', () => {
       id: 42,
       planDate: '2026-06-14',
       createdAt: '2026-06-14T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [
         {
           position: 1,
@@ -261,5 +274,53 @@ describe('getPlanById', () => {
       message: 'Plan not found',
     })
     await expect(getPlanById(999)).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('deletePlan', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('deletes a plan on success (204)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 204,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deletePlan(1)).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/daily-plans/1'),
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+      }),
+    )
+  })
+
+  it('rethrows ApiError with status 404 when plan is not found', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 404,
+            message: 'daily plan not found',
+          }),
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    )
+
+    await expect(deletePlan(999)).rejects.toMatchObject({
+      status: 404,
+      message: 'daily plan not found',
+    })
+    await expect(deletePlan(999)).rejects.toBeInstanceOf(ApiError)
   })
 })

@@ -1,0 +1,611 @@
+openapi: 3.0.3
+info:
+  title: FocusFlow AI
+  description: |
+    Session-cookie API for tasks and AI-assisted daily plans.
+
+    **Authentication:** Most routes require an HttpOnly `JSESSIONID` cookie. Only
+    `POST /api/auth/register` and `POST /api/auth/login` are public.
+
+    **CSRF:** `POST`, `PUT`, and `DELETE` require a readable `XSRF-TOKEN` cookie and
+    matching `X-XSRF-TOKEN` header (including register/login). Seed the token with
+    `GET /api/auth/me` (401 when logged out still sets the cookie).
+
+    Human-readable guide: docs/api.md
+  version: 1.0.2
+
+servers:
+  - url: http://localhost:8080
+    description: Spring Boot backend
+  - url: http://localhost:5173
+    description: Vite dev proxy (prefer for cookie-aware clients)
+
+tags:
+  - name: Auth
+  - name: Tasks
+  - name: DailyPlans
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register and start session
+      operationId: register
+      security:
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: CSRF failure
+        '409':
+          description: Email or username conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and start session
+      operationId: login
+      security:
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: CSRF failure
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: End session
+      description: Configured in Spring Security; invalidates session and deletes JSESSIONID.
+      operationId: logout
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '204':
+          description: Logged out
+        '401':
+          description: Not authenticated
+        '403':
+          description: CSRF failure
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      operationId: getCurrentUser
+      security:
+        - sessionCookie: []
+        - {}
+      description: |
+        When unauthenticated, returns 401 but may still set the XSRF-TOKEN cookie
+        (useful for CSRF seeding).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated
+
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      summary: List tasks
+      operationId: listTasks
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskResponse'
+        '401':
+          description: Not authenticated
+    post:
+      tags: [Tasks]
+      summary: Create task
+      operationId: createTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Not authenticated
+        '403':
+          description: CSRF failure
+
+  /api/tasks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [Tasks]
+      summary: Get task
+      operationId: getTask
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          description: Not authenticated
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    put:
+      tags: [Tasks]
+      summary: Update task
+      operationId: updateTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Not authenticated
+        '403':
+          description: CSRF failure
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      operationId: deleteTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Not authenticated
+        '403':
+          description: CSRF failure
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/daily-plans/generate:
+    post:
+      tags: [DailyPlans]
+      summary: Generate daily plan
+      description: |
+        Loads plannable tasks (OPEN and IN_PROGRESS), calls AI provider, validates
+        ranking, persists plan with availableMinutes and optional warning snapshot.
+      operationId: generateDailyPlan
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePlanRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyPlanResponse'
+        '400':
+          description: No plannable tasks or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Not authenticated
+        '403':
+          description: CSRF failure
+        '502':
+          description: AI provider failure (nothing saved)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/daily-plans:
+    get:
+      tags: [DailyPlans]
+      summary: List daily plans
+      operationId: listDailyPlans
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: planDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter to YYYY-MM-DD
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyPlanResponse'
+        '401':
+          description: Not authenticated
+
+  /api/daily-plans/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [DailyPlans]
+      summary: Get daily plan
+      operationId: getDailyPlan
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyPlanResponse'
+        '401':
+          description: Not authenticated
+        '404':
+          description: Daily plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    delete:
+      tags: [DailyPlans]
+      summary: Delete daily plan
+      description: Hard delete; plan items removed, tasks remain.
+      operationId: deleteDailyPlan
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Not authenticated
+        '403':
+          description: CSRF failure
+        '404':
+          description: Daily plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: HttpOnly session cookie set by register or login.
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+      description: |
+        Must match the readable XSRF-TOKEN cookie. Required on POST, PUT, DELETE.
+        Seed with GET /api/auth/me before the first mutation.
+
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  schemas:
+    ApiErrorResponse:
+      type: object
+      required: [status, message]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    RegisterRequest:
+      type: object
+      required: [email, username, password]
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        password:
+          type: string
+          minLength: 8
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    UserResponse:
+      type: object
+      required: [id, email, username]
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+        username:
+          type: string
+
+    TaskPriority:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+
+    TaskStatus:
+      type: string
+      enum: [OPEN, IN_PROGRESS, DONE, CANCELLED]
+
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        estimatedMinutes:
+          type: integer
+          nullable: true
+
+    UpdateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        estimatedMinutes:
+          type: integer
+          nullable: true
+
+    TaskResponse:
+      type: object
+      required: [id, title, description, priority, status, dueDate, estimatedMinutes]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        estimatedMinutes:
+          type: integer
+          nullable: true
+
+    GeneratePlanRequest:
+      type: object
+      required: [availableMinutes]
+      properties:
+        availableMinutes:
+          type: integer
+          minimum: 1
+        planDate:
+          type: string
+          format: date
+          nullable: true
+
+    DailyPlanWarningEstimatedTask:
+      type: object
+      required: [taskId, title, estimatedMinutes]
+      properties:
+        taskId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        estimatedMinutes:
+          type: integer
+
+    DailyPlanWarningUnestimatedTask:
+      type: object
+      required: [taskId, title]
+      properties:
+        taskId:
+          type: integer
+          format: int64
+        title:
+          type: string
+
+    DailyPlanWarning:
+      type: object
+      required: [minimumAvailableMinutes, estimatedTasks, unestimatedTasks]
+      properties:
+        minimumAvailableMinutes:
+          type: integer
+        estimatedTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyPlanWarningEstimatedTask'
+        unestimatedTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyPlanWarningUnestimatedTask'
+
+    DailyPlanItemResponse:
+      type: object
+      required: [position, task]
+      properties:
+        position:
+          type: integer
+        task:
+          $ref: '#/components/schemas/TaskResponse'
+
+    DailyPlanResponse:
+      type: object
+      required: [id, planDate, createdAt, items, availableMinutes, warning]
+      properties:
+        id:
+          type: integer
+          format: int64
+        planDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyPlanItemResponse'
+        availableMinutes:
+          type: integer
+          nullable: true
+        warning:
+          allOf:
+            - $ref: '#/components/schemas/DailyPlanWarning'
+          nullable: true

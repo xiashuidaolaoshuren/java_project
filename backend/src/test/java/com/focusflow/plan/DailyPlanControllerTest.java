@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,6 +18,7 @@ import com.focusflow.common.error.GlobalExceptionHandler;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
+import com.focusflow.plan.dto.DailyPlanWarning;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.FocusFlowUserDetailsService;
 import com.focusflow.security.SecurityConfig;
@@ -88,9 +90,9 @@ class DailyPlanControllerTest {
 
 	@Test
 	@WithMockUser
-	void generate_whenNoOpenTasks_returns400WithMessage() throws Exception {
+	void generate_whenNoPlannableTasks_returns400WithMessage() throws Exception {
 		when(dailyPlanService.generate(any(GeneratePlanRequest.class)))
-				.thenThrow(new BadRequestException("no open tasks available for planning"));
+				.thenThrow(new BadRequestException("no plannable tasks available for planning"));
 
 		mockMvc.perform(
 						post("/api/daily-plans/generate")
@@ -104,7 +106,7 @@ class DailyPlanControllerTest {
 										"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.status").value(400))
-				.andExpect(jsonPath("$.message").value("no open tasks available for planning"))
+				.andExpect(jsonPath("$.message").value("no plannable tasks available for planning"))
 				.andExpect(jsonPath("$.path").value("/api/daily-plans/generate"));
 	}
 
@@ -127,7 +129,9 @@ class DailyPlanControllerTest {
 														TaskPriority.HIGH,
 														TaskStatus.OPEN,
 														null,
-														45)))));
+														45))),
+								null,
+								null));
 
 		mockMvc.perform(
 						post("/api/daily-plans/generate")
@@ -146,6 +150,51 @@ class DailyPlanControllerTest {
 				.andExpect(jsonPath("$.items.length()").value(1))
 				.andExpect(jsonPath("$.items[0].position").value(1))
 				.andExpect(jsonPath("$.items[0].task.title").value("Write tests"));
+	}
+
+	@Test
+	@WithMockUser
+	void generate_whenResponseIncludesWarning_rendersAvailableMinutesAndWarningJson() throws Exception {
+		when(dailyPlanService.generate(any(GeneratePlanRequest.class)))
+				.thenReturn(
+						new DailyPlanResponse(
+								1L,
+								LocalDate.of(2026, 6, 1),
+								Instant.parse("2026-06-01T09:00:00Z"),
+								List.of(
+										new DailyPlanItemResponse(
+												1,
+												new TaskResponse(
+														10L,
+														"Write tests",
+														null,
+														TaskPriority.HIGH,
+														TaskStatus.OPEN,
+														null,
+														45))),
+								120,
+								new DailyPlanWarning(
+										90,
+										List.of(new DailyPlanWarning.EstimatedTask(10L, "Write tests", 90)),
+										List.of())));
+
+		mockMvc.perform(
+						post("/api/daily-plans/generate")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "availableMinutes": 120
+										}
+										"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.availableMinutes").value(120))
+				.andExpect(jsonPath("$.warning.minimumAvailableMinutes").value(90))
+				.andExpect(jsonPath("$.warning.estimatedTasks.length()").value(1))
+				.andExpect(jsonPath("$.warning.estimatedTasks[0].taskId").value(10))
+				.andExpect(jsonPath("$.warning.estimatedTasks[0].title").value("Write tests"))
+				.andExpect(jsonPath("$.warning.estimatedTasks[0].estimatedMinutes").value(90));
 	}
 
 	@Test
@@ -198,7 +247,9 @@ class DailyPlanControllerTest {
 																TaskPriority.HIGH,
 																TaskStatus.OPEN,
 																null,
-																45))))));
+																45))),
+										null,
+										null)));
 
 		mockMvc.perform(get("/api/daily-plans"))
 				.andExpect(status().isOk())
@@ -249,7 +300,9 @@ class DailyPlanControllerTest {
 														TaskPriority.HIGH,
 														TaskStatus.OPEN,
 														null,
-														45)))));
+														45))),
+								null,
+								null));
 
 		mockMvc.perform(get("/api/daily-plans/1"))
 				.andExpect(status().isOk())
@@ -266,6 +319,37 @@ class DailyPlanControllerTest {
 				.thenThrow(new NotFoundException("daily plan not found"));
 
 		mockMvc.perform(get("/api/daily-plans/99"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.status").value(404))
+				.andExpect(jsonPath("$.message").value("daily plan not found"))
+				.andExpect(jsonPath("$.path").value("/api/daily-plans/99"));
+	}
+
+	@Test
+	void delete_whenUnauthenticated_returns401() throws Exception {
+		mockMvc.perform(delete("/api/daily-plans/1").with(csrf()))
+				.andExpect(status().isUnauthorized());
+
+		verify(dailyPlanService, never()).deleteForCurrentUser(1L);
+	}
+
+	@Test
+	@WithMockUser
+	void delete_whenAuthenticated_returns204() throws Exception {
+		mockMvc.perform(delete("/api/daily-plans/1").with(csrf()))
+				.andExpect(status().isNoContent());
+
+		verify(dailyPlanService).deleteForCurrentUser(1L);
+	}
+
+	@Test
+	@WithMockUser
+	void delete_whenNotFound_returns404WithStandardBody() throws Exception {
+		org.mockito.Mockito.doThrow(new NotFoundException("daily plan not found"))
+				.when(dailyPlanService)
+				.deleteForCurrentUser(99L);
+
+		mockMvc.perform(delete("/api/daily-plans/99").with(csrf()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.status").value(404))
 				.andExpect(jsonPath("$.message").value("daily plan not found"))

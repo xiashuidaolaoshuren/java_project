@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { generateDailyPlan, getPlanById, getTodayPlan, listPlans } from '@/features/plans/api'
+import { deletePlan, generateDailyPlan, getPlanById, getTodayPlan, listPlans } from '@/features/plans/api'
 import type { GeneratePlanRequest } from '@/types/api'
 
 export const todayPlanQueryKey = ['plans', 'today'] as const
@@ -63,6 +63,21 @@ export function useGeneratePlan() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: todayPlanQueryKey }),
         queryClient.invalidateQueries({ queryKey: plansQueryKey }),
+      ])
+    },
+  })
+}
+
+export function useDeletePlan() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => deletePlan(id),
+    onSuccess: async (_data, id) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: todayPlanQueryKey }),
+        queryClient.invalidateQueries({ queryKey: plansQueryKey }),
+        queryClient.invalidateQueries({ queryKey: planDetailQueryKey(id) }),
       ])
     },
   })

@@ -3,6 +3,7 @@ package com.focusflow.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.focusflow.task.TaskPriority;
+import com.focusflow.task.TaskStatus;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,35 @@ import org.junit.jupiter.api.Test;
 class DailyPlanPromptBuilderTest {
 
 	private final DailyPlanPromptBuilder promptBuilder = new DailyPlanPromptBuilder();
+
+	@Test
+	void aiPlanTask_exposesStatus() {
+		AiPlanTask task =
+				new AiPlanTask(1L, "t", null, TaskPriority.HIGH, null, null, TaskStatus.IN_PROGRESS);
+
+		assertThat(task.status()).isEqualTo(TaskStatus.IN_PROGRESS);
+	}
+
+	@Test
+	void build_includesStatusOnTaskLine() {
+		AiDailyPlanRequest request =
+				new AiDailyPlanRequest(
+						List.of(
+								new AiPlanTask(
+										3L,
+										"In progress task",
+										null,
+										TaskPriority.HIGH,
+										null,
+										null,
+										TaskStatus.IN_PROGRESS)),
+						90,
+						LocalDate.of(2026, 6, 1));
+
+		String prompt = promptBuilder.build(request);
+
+		assertThat(prompt).contains("status=IN_PROGRESS");
+	}
 
 	@Test
 	void build_includesAvailableMinutesAndTaskCoreFields() {
@@ -22,8 +52,10 @@ class DailyPlanPromptBuilderTest {
 										"TDD coverage",
 										TaskPriority.HIGH,
 										LocalDate.of(2026, 6, 1),
-										45)),
-						120);
+										45,
+										TaskStatus.OPEN)),
+						120,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -38,8 +70,9 @@ class DailyPlanPromptBuilderTest {
 				new AiDailyPlanRequest(
 						List.of(
 								new AiPlanTask(
-										2L, "Minimal task", null, TaskPriority.MEDIUM, null, null)),
-						60);
+										2L, "Minimal task", null, TaskPriority.MEDIUM, null, null, TaskStatus.OPEN)),
+						60,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -59,8 +92,10 @@ class DailyPlanPromptBuilderTest {
 										"TDD coverage",
 										TaskPriority.HIGH,
 										LocalDate.of(2026, 6, 1),
-										45)),
-						120);
+										45,
+										TaskStatus.OPEN)),
+						120,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -80,20 +115,73 @@ class DailyPlanPromptBuilderTest {
 										null,
 										TaskPriority.HIGH,
 										null,
-										null),
+										null,
+										TaskStatus.OPEN),
 								new AiPlanTask(
 										20L,
 										"Second task",
 										null,
 										TaskPriority.LOW,
 										null,
-										null)),
-						90);
+										null,
+										TaskStatus.OPEN)),
+						90,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
 		assertThat(prompt).contains("Task 10");
 		assertThat(prompt).contains("Task 20");
 		assertThat(prompt.indexOf("First task")).isLessThan(prompt.indexOf("Second task"));
+	}
+
+	@Test
+	void build_includesPlanDateAndDueOrOverdueRule() {
+		AiDailyPlanRequest request =
+				new AiDailyPlanRequest(
+						List.of(
+								new AiPlanTask(
+										1L,
+										"Write tests",
+										null,
+										TaskPriority.HIGH,
+										LocalDate.of(2026, 6, 1),
+										45,
+										TaskStatus.OPEN)),
+						120,
+						LocalDate.of(2026, 6, 1));
+
+		String prompt = promptBuilder.build(request);
+
+		assertThat(prompt).contains("Plan date: 2026-06-01");
+		assertThat(prompt)
+				.contains(
+						"Open tasks with dueDate on or before the plan date are due-or-overdue and must be included before optional work.");
+	}
+
+	@Test
+	void build_includesRankingRules() {
+		AiDailyPlanRequest request =
+				new AiDailyPlanRequest(
+						List.of(
+								new AiPlanTask(
+										1L,
+										"Write tests",
+										null,
+										TaskPriority.HIGH,
+										null,
+										null,
+										TaskStatus.OPEN)),
+						120,
+						LocalDate.of(2026, 6, 1));
+
+		String prompt = promptBuilder.build(request);
+
+		assertThat(prompt).contains("Prefer HIGH over MEDIUM over LOW");
+		assertThat(prompt).contains("must-continue");
+		assertThat(prompt).contains("due-or-overdue");
+		assertThat(prompt).contains("optional work must fit");
+		assertThat(prompt).contains("leftover");
+		assertThat(prompt).contains("estimates");
 	}
 }

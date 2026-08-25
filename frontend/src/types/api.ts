@@ -68,9 +68,26 @@ export type DailyPlanItemResponse = {
   task: TaskResponse
 }
 
+export type DailyPlanWarningTask = {
+  taskId: number
+  title: string
+}
+
+export type DailyPlanWarningEstimatedTask = DailyPlanWarningTask & {
+  estimatedMinutes: number
+}
+
+export type DailyPlanWarning = {
+  minimumAvailableMinutes: number
+  estimatedTasks: DailyPlanWarningEstimatedTask[]
+  unestimatedTasks: DailyPlanWarningTask[]
+}
+
 export type DailyPlanResponse = {
   id: number
   planDate: string
   createdAt: string
+  availableMinutes: number | null
+  warning: DailyPlanWarning | null
   items: DailyPlanItemResponse[]
 }

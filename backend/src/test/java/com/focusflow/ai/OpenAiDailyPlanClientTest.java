@@ -11,6 +11,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.focusflow.task.TaskPriority;
+import com.focusflow.task.TaskStatus;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,8 +51,10 @@ class OpenAiDailyPlanClientTest {
 										"TDD coverage",
 										TaskPriority.HIGH,
 										LocalDate.of(2026, 6, 1),
-										45)),
-						120);
+										45,
+										TaskStatus.OPEN)),
+						120,
+						LocalDate.of(2026, 6, 1));
 		String expectedPrompt = promptBuilder.build(request) + OpenAiDailyPlanClient.STRUCTURED_OUTPUT_SUFFIX;
 
 		mockServer
@@ -106,15 +109,18 @@ class OpenAiDailyPlanClientTest {
 										null,
 										TaskPriority.HIGH,
 										null,
-										null),
+										null,
+										TaskStatus.OPEN),
 								new AiPlanTask(
 										20L,
 										"Second task",
 										null,
 										TaskPriority.LOW,
 										null,
-										null)),
-						90);
+										null,
+										TaskStatus.OPEN)),
+						90,
+						LocalDate.of(2026, 6, 1));
 
 		mockServer
 				.expect(requestTo(BASE_URL + "/chat/completions"))
@@ -152,8 +158,10 @@ class OpenAiDailyPlanClientTest {
 										null,
 										TaskPriority.HIGH,
 										null,
-										null)),
-						60);
+										null,
+										TaskStatus.OPEN)),
+						60,
+						LocalDate.of(2026, 6, 1));
 
 		mockServer
 				.expect(requestTo(BASE_URL + "/chat/completions"))
@@ -229,8 +237,10 @@ class OpenAiDailyPlanClientTest {
 										null,
 										TaskPriority.HIGH,
 										null,
-										null)),
-						60);
+										null,
+										TaskStatus.OPEN)),
+						60,
+						LocalDate.of(2026, 6, 1));
 
 		assertThatThrownBy(() -> client.generate(request))
 				.isInstanceOf(AiProviderException.class);

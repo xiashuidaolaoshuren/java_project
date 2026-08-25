@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DailyPlanResponse } from '@/types/api'
 
 import {
+  planDetailQueryKey,
   plansQueryKey,
   todayPlanQueryKey,
+  useDeletePlan,
   useGeneratePlan,
   usePlan,
   usePlans,
@@ -15,6 +17,7 @@ import {
 } from '@/features/plans/hooks'
 
 vi.mock('@/features/plans/api', () => ({
+  deletePlan: vi.fn(),
   generateDailyPlan: vi.fn(),
   getPlanById: vi.fn(),
   getTodayPlan: vi.fn(),
@@ -22,11 +25,14 @@ vi.mock('@/features/plans/api', () => ({
 }))
 
 import {
+  deletePlan,
   generateDailyPlan,
   getPlanById,
   getTodayPlan,
   listPlans,
 } from '@/features/plans/api'
+
+const mockedDeletePlan = vi.mocked(deletePlan)
 
 const mockedGenerateDailyPlan = vi.mocked(generateDailyPlan)
 const mockedGetPlanById = vi.mocked(getPlanById)
@@ -54,6 +60,8 @@ const samplePlan: DailyPlanResponse = {
   id: 1,
   planDate: '2026-06-15',
   createdAt: '2026-06-15T09:00:00Z',
+  availableMinutes: null,
+  warning: null,
   items: [
     {
       position: 1,
@@ -205,5 +213,42 @@ describe('usePlan', () => {
     })
 
     expect(mockedGetPlanById).not.toHaveBeenCalled()
+  })
+})
+
+describe('useDeletePlan', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls deletePlan and invalidates plan queries on success', async () => {
+    mockedDeletePlan.mockResolvedValue(undefined)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useDeletePlan(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate(1)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockedDeletePlan).toHaveBeenCalledWith(1)
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: todayPlanQueryKey,
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: plansQueryKey,
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: planDetailQueryKey(1),
+    })
   })
 })

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { DailyPlanResponse } from '@/types/api'
+import { PlanWarningAlert } from '@/features/plans/PlanWarningAlert'
 import { PriorityBadge } from '@/features/tasks/PriorityBadge'
 import { StatusBadge } from '@/features/tasks/StatusBadge'
 import { TaskMetaItem } from '@/features/tasks/TaskMetaItem'
@@ -107,14 +108,20 @@ export function DailyPlanView({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {plan.warning != null && (
+          <PlanWarningAlert
+            warning={plan.warning}
+            availableMinutes={plan.availableMinutes}
+          />
+        )}
         <ol className="flex flex-col gap-3">
           {sortedItems.map((item) => (
             <li
               key={`${item.position}-${item.task.id}`}
-              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-border px-3 py-2"
+              className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2"
             >
               <span className="min-w-0 font-medium">{item.task.title}</span>
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <TaskMetaItem category="priority" icon={FlagIcon}>
                   <PriorityBadge priority={item.task.priority} />
                 </TaskMetaItem>

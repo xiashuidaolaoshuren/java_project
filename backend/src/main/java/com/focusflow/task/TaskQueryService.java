@@ -15,4 +15,9 @@ public class TaskQueryService {
 	public List<Task> findOpenTasksByOwnerId(Long ownerId) {
 		return taskRepository.findByOwner_IdAndStatusOrderByDueDateAsc(ownerId, TaskStatus.OPEN);
 	}
+
+	public List<Task> findPlannableTasksByOwnerId(Long ownerId) {
+		return taskRepository.findByOwner_IdAndStatusInOrderByDueDateAsc(
+				ownerId, List.of(TaskStatus.OPEN, TaskStatus.IN_PROGRESS));
+	}
 }

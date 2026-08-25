@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.focusflow.plan.DailyPlan;
 import com.focusflow.plan.DailyPlanItem;
 import com.focusflow.plan.DailyPlanRepository;
+import com.focusflow.plan.DailyPlanWarningSnapshot;
 import com.focusflow.task.Task;
 import com.focusflow.task.TaskPriority;
 import com.focusflow.task.TaskRepository;
@@ -375,5 +376,125 @@ class PostgresIntegrationTest {
 							.extracting(i -> i.getTask().getTitle())
 							.containsExactly("Second task", "First task");
 				});
+	}
+
+	@Test
+	void deleteDailyPlan_removesItemsAndLeavesTasks() {
+		String suffix = UUID.randomUUID().toString().substring(0, 8);
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("delete-plan-owner")
+								.withPasswordHash(
+										"$2a$10$4444444444444444444444444444444444444444444444444444444"));
+
+		Task savedFirst =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(owner)
+								.withTitle("First task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
+
+		Task savedSecond =
+				savedTask(
+						taskRepository,
+						TaskTestBuilder.task(owner)
+								.withTitle("Second task")
+								.withPriority(TaskPriority.MEDIUM)
+								.withStatus(TaskStatus.OPEN));
+
+		DailyPlan plan =
+				savedPlan(
+						dailyPlanRepository,
+						DailyPlanTestBuilder.plan(owner, LocalDate.of(2026, 9, 22))
+								.withCreatedAt(Instant.parse("2026-09-22T10:00:00Z"))
+								.addItem(savedFirst, 1)
+								.addItem(savedSecond, 2));
+		Long planId = plan.getId();
+		dailyPlanRepository.flush();
+
+		dailyPlanRepository.delete(plan);
+		dailyPlanRepository.flush();
+
+		assertThat(dailyPlanRepository.findByOwner_IdAndId(owner.getId(), planId)).isEmpty();
+		assertThat(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId()))
+				.isEmpty();
+		assertThat(taskRepository.findByOwner_IdOrderByDueDateAsc(owner.getId()))
+				.extracting(Task::getId)
+				.containsExactly(savedFirst.getId(), savedSecond.getId());
+	}
+
+	@Test
+	void persistedDailyPlan_roundTripsAvailableMinutesAndWarning() {
+		String suffix = UUID.randomUUID().toString().substring(0, 8);
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(suffix)
+								.withAccountPrefix("warning-plan-owner")
+								.withPasswordHash(
+										"$2a$10$5555555555555555555555555555555555555555555555555555555"));
+
+		DailyPlanWarningSnapshot warning =
+				new DailyPlanWarningSnapshot(
+						90,
+						List.of(new DailyPlanWarningSnapshot.EstimatedTask(1L, "Continue work", 90)),
+						List.of(new DailyPlanWarningSnapshot.UnestimatedTask(2L, "Due today")));
+
+		DailyPlan savedWithWarning =
+				savedPlan(
+						dailyPlanRepository,
+						DailyPlanTestBuilder.plan(owner, LocalDate.of(2026, 10, 1))
+								.withCreatedAt(Instant.parse("2026-10-01T10:00:00Z"))
+								.withAvailableMinutes(30)
+								.withWarning(warning));
+		dailyPlanRepository.flush();
+
+		assertThat(dailyPlanRepository.findByOwner_IdAndId(owner.getId(), savedWithWarning.getId()))
+				.isPresent()
+				.get()
+				.satisfies(
+						reloaded -> {
+							assertThat(reloaded.getAvailableMinutes()).isEqualTo(30);
+							assertThat(reloaded.getWarning()).isNotNull();
+							assertThat(reloaded.getWarning().minimumAvailableMinutes()).isEqualTo(90);
+							assertThat(reloaded.getWarning().estimatedTasks())
+									.singleElement()
+									.satisfies(
+											task -> {
+												assertThat(task.taskId()).isEqualTo(1L);
+												assertThat(task.title()).isEqualTo("Continue work");
+												assertThat(task.estimatedMinutes()).isEqualTo(90);
+											});
+							assertThat(reloaded.getWarning().unestimatedTasks())
+									.singleElement()
+									.satisfies(
+											task -> {
+												assertThat(task.taskId()).isEqualTo(2L);
+												assertThat(task.title()).isEqualTo("Due today");
+											});
+						});
+
+		DailyPlan savedWithoutWarning =
+				savedPlan(
+						dailyPlanRepository,
+						DailyPlanTestBuilder.plan(owner, LocalDate.of(2026, 10, 2))
+								.withCreatedAt(Instant.parse("2026-10-02T10:00:00Z")));
+		dailyPlanRepository.flush();
+
+		assertThat(
+						dailyPlanRepository.findByOwner_IdAndId(
+								owner.getId(), savedWithoutWarning.getId()))
+				.isPresent()
+				.get()
+				.satisfies(
+						reloaded -> {
+							assertThat(reloaded.getAvailableMinutes()).isNull();
+							assertThat(reloaded.getWarning()).isNull();
+						});
 	}
 }

@@ -8,6 +8,8 @@ const samplePlan: DailyPlanResponse = {
   id: 1,
   planDate: '2026-06-15',
   createdAt: '2026-06-15T09:00:00Z',
+  availableMinutes: null,
+  warning: null,
   items: [
     {
       position: 2,
@@ -36,7 +38,58 @@ const samplePlan: DailyPlanResponse = {
   ],
 }
 
+const warningPlan: DailyPlanResponse = {
+  id: 2,
+  planDate: '2026-06-16',
+  createdAt: '2026-06-16T09:00:00Z',
+  availableMinutes: 30,
+  warning: {
+    minimumAvailableMinutes: 60,
+    estimatedTasks: [{ taskId: 10, title: 'Write tests', estimatedMinutes: 60 }],
+    unestimatedTasks: [{ taskId: 11, title: 'Tidy up' }],
+  },
+  items: [],
+}
+
+const unestimatedOnlyWarningPlan: DailyPlanResponse = {
+  id: 3,
+  planDate: '2026-06-17',
+  createdAt: '2026-06-17T09:00:00Z',
+  availableMinutes: 120,
+  warning: {
+    minimumAvailableMinutes: 0,
+    estimatedTasks: [],
+    unestimatedTasks: [{ taskId: 12, title: 'Tidy up' }],
+  },
+  items: [],
+}
+
 describe('DailyPlanView', () => {
+  it('renders unestimated-only warning without claiming time was exceeded', () => {
+    render(<DailyPlanView plan={unestimatedOnlyWarningPlan} />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(/unknown duration/i)
+    expect(alert).not.toHaveTextContent(/exceeded/i)
+  })
+
+  it('renders shortfall alert when the plan has a warning', () => {
+    render(<DailyPlanView plan={warningPlan} />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(/plan needs more focus time/i)
+    expect(alert).toHaveTextContent(/at least 60 min/i)
+    expect(alert).toHaveTextContent('Write tests — 60 min')
+    expect(alert).toHaveTextContent('Tidy up — unknown duration')
+  })
+
+  it('renders no alert when the plan warning is null', () => {
+    render(<DailyPlanView plan={samplePlan} />)
+
+    expect(screen.getByText(/today's plan/i)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('renders plan items in position order with task title and focus minutes', () => {
     render(<DailyPlanView plan={samplePlan} />)
 
@@ -64,14 +117,13 @@ describe('DailyPlanView', () => {
     expect(items[1].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
 
     for (const item of items) {
-      expect(item).toHaveClass('flex-wrap')
+      expect(item).toHaveClass('flex-col')
       const title = item.querySelector('.font-medium')
       expect(title).toHaveClass('min-w-0')
       const metaCluster = item.querySelector('[data-meta="priority"]')?.parentElement
       expect(metaCluster).toBeInTheDocument()
-      expect(metaCluster).not.toHaveClass('shrink-0')
-      expect(metaCluster).toHaveClass('min-w-0')
-      expect(metaCluster).toHaveClass('justify-end')
+      expect(metaCluster).not.toHaveClass('justify-end')
+      expect(metaCluster).not.toHaveClass('min-w-0')
     }
   })
 

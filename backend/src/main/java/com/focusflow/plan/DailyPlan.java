@@ -17,6 +17,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "daily_plans")
@@ -42,6 +44,13 @@ public class DailyPlan {
 			orphanRemoval = true)
 	@OrderBy("position ASC")
 	private final List<DailyPlanItem> items = new ArrayList<>();
+
+	@Column(name = "available_minutes")
+	private Integer availableMinutes;
+
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(name = "warning")
+	private DailyPlanWarningSnapshot warning;
 
 	public Long getId() {
 		return id;
@@ -73,6 +82,22 @@ public class DailyPlan {
 
 	public List<DailyPlanItem> getItems() {
 		return items;
+	}
+
+	public Integer getAvailableMinutes() {
+		return availableMinutes;
+	}
+
+	public void setAvailableMinutes(Integer availableMinutes) {
+		this.availableMinutes = availableMinutes;
+	}
+
+	public DailyPlanWarningSnapshot getWarning() {
+		return warning;
+	}
+
+	public void setWarning(DailyPlanWarningSnapshot warning) {
+		this.warning = warning;
 	}
 
 	public void addItem(DailyPlanItem item) {
