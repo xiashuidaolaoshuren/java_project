@@ -43,7 +43,7 @@ The Gradle wrapper is included, so a global Gradle installation is not required.
 
    `.\gradlew.bat bootRun` loads the repo-root `.env` into the Spring process automatically. You do not need `echo $env:OPENAI_*` to show values in your shell; restart `bootRun` after editing `.env`. Shell or CI environment variables still take precedence when set.
 
-4. In one terminal, run the backend. The local database schema is created or updated only when `SPRING_JPA_HIBERNATE_DDL_AUTO=update` is set because the default configuration uses `ddl-auto: none`:
+4. In one terminal, run the backend. The local database schema is created or updated only when `SPRING_JPA_HIBERNATE_DDL_AUTO=update` is set because the default configuration uses `ddl-auto: none`. Restart with that same `update` setting after pulling new nullable columns (for example `available_minutes` and `warning` on `daily_plans`) so Hibernate adds them. Do not use `create` or `create-drop` on a Docker volume you want to keep:
 
    ```powershell
    $env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"
@@ -124,9 +124,10 @@ All endpoints except register/login require an authenticated session cookie (`JS
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/daily-plans/generate` | Generate plan from active tasks |
+| POST | `/api/daily-plans/generate` | Generate plan from plannable tasks (`OPEN` and `IN_PROGRESS`) |
 | GET | `/api/daily-plans` | List saved plans (optional `?planDate=YYYY-MM-DD`) |
 | GET | `/api/daily-plans/{id}` | Get one saved plan |
+| DELETE | `/api/daily-plans/{id}` | Owner-scoped hard delete (`204`; `404` if missing or not owned) |
 
 ## Manual verification checklist
 
@@ -135,9 +136,10 @@ With Docker, the backend, and Vite running, verify these through the browser at 
 - An unauthenticated `GET /api/auth/me` or `GET /api/tasks` returns **401**.
 - Register or log in. The browser holds an HttpOnly `JSESSIONID`; refresh still succeeds at `GET /api/auth/me`; do not store an auth token in local storage.
 - Create, list, update, change status, and delete a task. Changes survive refresh. Mutating requests send the `X-XSRF-TOKEN` header.
-- With at least one OPEN task and a configured provider key, generate a plan. It returns **201** and is available from `/plans` and `/plans/:id`.
-- For a user with zero OPEN tasks, generation returns **400** with `no open tasks available for planning`; it does not call the provider or save an empty plan.
+- With at least one plannable task (`OPEN` or `IN_PROGRESS`) and a configured provider key, generate a plan. It returns **201** and is available from `/plans` and `/plans/:id`. `IN_PROGRESS`-only is valid.
+- For a user with no plannable tasks, generation returns **400** with `no plannable tasks available for planning`; it does not call the provider or save an empty plan.
 - A failed provider call returns **502** and saves no partial plan. Use an empty or invalid key only when intentionally checking this path; do not spend an extra provider credit just to repeat it.
+- Delete a plan from `/plans` or `/plans/:id` after the confirm dialog. Success is **204**; the plan and its items are gone, tasks remain. Detail delete navigates to `/plans`. The dashboard has no delete control.
 - Register two users. A foreign task or daily-plan id returns **404**, and neither user sees the other user's records in list endpoints.
 
 ### Optional HTTP and CSRF checks
@@ -215,7 +217,7 @@ Open these packages in roughly this order to trace a request from HTTP to persis
 - **`security`** — `SecurityConfig`, `CsrfCookieFilter`, `CurrentUser`, and `UserContext` teach filter-chain configuration, cookie-based CSRF, a **401** authentication entry point, session logout, and how application code receives the current user without depending on auth API DTOs.
 - **`user`** — `User` and `UserRepository` are the core JPA account entity and repository. Study the uniqueness constraints before following the auth service.
 - **`task`** — `TaskController`, `TaskService`, `TaskQueryService`, and `TaskRepository` teach owner-scoped CRUD, transactions, mapping, and a small query facade. `TaskQueryService` lets the plan feature read tasks without coupling directly to another feature's repository.
-- **`plan`** — `DailyPlanController`, `DailyPlanService`, `DailyPlan`, `DailyPlanItem`, and `DailyPlanRepository` show orchestration, persistence of an aggregate, and owner-scoped reads. The service rejects generation with no OPEN tasks before making an external request.
+- **`plan`** — `DailyPlanController`, `DailyPlanService`, `DailyPlan`, `DailyPlanItem`, and `DailyPlanRepository` show orchestration, persistence of an aggregate, and owner-scoped reads. The service rejects generation with no plannable tasks (`OPEN` and `IN_PROGRESS`) before making an external request.
 - **`ai`** — `DailyPlanAiClient` is the mockable provider boundary; `OpenAiDailyPlanClient` is the OpenAI-compatible implementation. Follow `DailyPlanPromptBuilder` to see structured prompt construction and `AiProviderException` to see provider failures become **502** responses.
 - **`common/error`** — `GlobalExceptionHandler` and the exception types define the API error contract: validation or domain preconditions **400**, unauthenticated **401**, missing owner-scoped data **404**, conflicts **409**, and AI-provider failures **502**.
 - **Repositories and JPA fetching** — Compare owner-id repository methods. `DailyPlanRepository` uses `@EntityGraph` and `SELECT DISTINCT` to load plan items and their tasks while `open-in-view` is disabled, avoiding lazy-initialization failures on response mapping.
