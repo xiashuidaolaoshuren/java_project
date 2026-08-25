@@ -73,7 +73,7 @@ public class DailyPlanService {
 										(first, second) -> first));
 		List<AiPlanTask> aiTasks = activeTasks.stream().map(this::toAiPlanTask).toList();
 		AiDailyPlanResponse aiResponse =
-				aiClient.generate(new AiDailyPlanRequest(aiTasks, request.availableMinutes()));
+				aiClient.generate(new AiDailyPlanRequest(aiTasks, request.availableMinutes(), planDate));
 		rankingValidator.validate(
 				activeTasks, planDate, request.availableMinutes(), aiResponse.items());
 		DailyPlanWarningSnapshot warning =

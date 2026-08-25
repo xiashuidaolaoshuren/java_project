@@ -108,7 +108,12 @@ export function DailyPlanView({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {plan.warning != null && <PlanWarningAlert warning={plan.warning} />}
+        {plan.warning != null && (
+          <PlanWarningAlert
+            warning={plan.warning}
+            availableMinutes={plan.availableMinutes}
+          />
+        )}
         <ol className="flex flex-col gap-3">
           {sortedItems.map((item) => (
             <li

@@ -53,7 +53,8 @@ class OpenAiDailyPlanClientTest {
 										LocalDate.of(2026, 6, 1),
 										45,
 										TaskStatus.OPEN)),
-						120);
+						120,
+						LocalDate.of(2026, 6, 1));
 		String expectedPrompt = promptBuilder.build(request) + OpenAiDailyPlanClient.STRUCTURED_OUTPUT_SUFFIX;
 
 		mockServer
@@ -118,7 +119,8 @@ class OpenAiDailyPlanClientTest {
 										null,
 										null,
 										TaskStatus.OPEN)),
-						90);
+						90,
+						LocalDate.of(2026, 6, 1));
 
 		mockServer
 				.expect(requestTo(BASE_URL + "/chat/completions"))
@@ -158,7 +160,8 @@ class OpenAiDailyPlanClientTest {
 										null,
 										null,
 										TaskStatus.OPEN)),
-						60);
+						60,
+						LocalDate.of(2026, 6, 1));
 
 		mockServer
 				.expect(requestTo(BASE_URL + "/chat/completions"))
@@ -236,7 +239,8 @@ class OpenAiDailyPlanClientTest {
 										null,
 										null,
 										TaskStatus.OPEN)),
-						60);
+						60,
+						LocalDate.of(2026, 6, 1));
 
 		assertThatThrownBy(() -> client.generate(request))
 				.isInstanceOf(AiProviderException.class);

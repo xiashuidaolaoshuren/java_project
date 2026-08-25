@@ -101,6 +101,7 @@ class DailyPlanServiceTest {
 		verify(aiClient).generate(captor.capture());
 		assertThat(captor.getValue().tasks()).hasSize(1);
 		assertThat(captor.getValue().availableMinutes()).isEqualTo(120);
+		assertThat(captor.getValue().planDate()).isEqualTo(LocalDate.of(2026, 6, 1));
 	}
 
 	@Test

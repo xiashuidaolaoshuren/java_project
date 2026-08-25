@@ -33,7 +33,8 @@ class DailyPlanPromptBuilderTest {
 										null,
 										null,
 										TaskStatus.IN_PROGRESS)),
-						90);
+						90,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -53,7 +54,8 @@ class DailyPlanPromptBuilderTest {
 										LocalDate.of(2026, 6, 1),
 										45,
 										TaskStatus.OPEN)),
-						120);
+						120,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -69,7 +71,8 @@ class DailyPlanPromptBuilderTest {
 						List.of(
 								new AiPlanTask(
 										2L, "Minimal task", null, TaskPriority.MEDIUM, null, null, TaskStatus.OPEN)),
-						60);
+						60,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -91,7 +94,8 @@ class DailyPlanPromptBuilderTest {
 										LocalDate.of(2026, 6, 1),
 										45,
 										TaskStatus.OPEN)),
-						120);
+						120,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
@@ -121,13 +125,38 @@ class DailyPlanPromptBuilderTest {
 										null,
 										null,
 										TaskStatus.OPEN)),
-						90);
+						90,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 
 		assertThat(prompt).contains("Task 10");
 		assertThat(prompt).contains("Task 20");
 		assertThat(prompt.indexOf("First task")).isLessThan(prompt.indexOf("Second task"));
+	}
+
+	@Test
+	void build_includesPlanDateAndDueOrOverdueRule() {
+		AiDailyPlanRequest request =
+				new AiDailyPlanRequest(
+						List.of(
+								new AiPlanTask(
+										1L,
+										"Write tests",
+										null,
+										TaskPriority.HIGH,
+										LocalDate.of(2026, 6, 1),
+										45,
+										TaskStatus.OPEN)),
+						120,
+						LocalDate.of(2026, 6, 1));
+
+		String prompt = promptBuilder.build(request);
+
+		assertThat(prompt).contains("Plan date: 2026-06-01");
+		assertThat(prompt)
+				.contains(
+						"Open tasks with dueDate on or before the plan date are due-or-overdue and must be included before optional work.");
 	}
 
 	@Test
@@ -143,7 +172,8 @@ class DailyPlanPromptBuilderTest {
 										null,
 										null,
 										TaskStatus.OPEN)),
-						120);
+						120,
+						LocalDate.of(2026, 6, 1));
 
 		String prompt = promptBuilder.build(request);
 

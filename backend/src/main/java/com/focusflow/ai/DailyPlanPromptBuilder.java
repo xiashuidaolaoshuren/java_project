@@ -7,6 +7,7 @@ public class DailyPlanPromptBuilder {
 
 	public String build(AiDailyPlanRequest request) {
 		StringBuilder prompt = new StringBuilder();
+		prompt.append("Plan date: ").append(request.planDate()).append('\n');
 		prompt.append("Available focus minutes: ").append(request.availableMinutes()).append('\n');
 		for (AiPlanTask task : request.tasks()) {
 			prompt.append(formatTaskLine(task)).append('\n');
@@ -17,6 +18,8 @@ public class DailyPlanPromptBuilder {
 				"- When priority is equal, prefer the sooner due date. Use title and description only to break ties when both priority and due date are equal.\n");
 		prompt.append(
 				"- Include every must-continue (in-progress) task, then every due-or-overdue open task, then optional work.\n");
+		prompt.append(
+				"- Open tasks with dueDate on or before the plan date are due-or-overdue and must be included before optional work.\n");
 		prompt.append(
 				"- optional work must fit the leftover minutes after must-include work. You may leave unused leftover rather than squeeze in a lower-priority task.\n");
 		prompt.append(

@@ -51,7 +51,28 @@ const warningPlan: DailyPlanResponse = {
   items: [],
 }
 
+const unestimatedOnlyWarningPlan: DailyPlanResponse = {
+  id: 3,
+  planDate: '2026-06-17',
+  createdAt: '2026-06-17T09:00:00Z',
+  availableMinutes: 120,
+  warning: {
+    minimumAvailableMinutes: 0,
+    estimatedTasks: [],
+    unestimatedTasks: [{ taskId: 12, title: 'Tidy up' }],
+  },
+  items: [],
+}
+
 describe('DailyPlanView', () => {
+  it('renders unestimated-only warning without claiming time was exceeded', () => {
+    render(<DailyPlanView plan={unestimatedOnlyWarningPlan} />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(/unknown duration/i)
+    expect(alert).not.toHaveTextContent(/exceeded/i)
+  })
+
   it('renders shortfall alert when the plan has a warning', () => {
     render(<DailyPlanView plan={warningPlan} />)
 
