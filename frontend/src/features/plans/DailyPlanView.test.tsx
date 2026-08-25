@@ -96,14 +96,13 @@ describe('DailyPlanView', () => {
     expect(items[1].querySelector('[data-meta="estimatedMinutes"]')).toBeInTheDocument()
 
     for (const item of items) {
-      expect(item).toHaveClass('flex-wrap')
+      expect(item).toHaveClass('flex-col')
       const title = item.querySelector('.font-medium')
       expect(title).toHaveClass('min-w-0')
       const metaCluster = item.querySelector('[data-meta="priority"]')?.parentElement
       expect(metaCluster).toBeInTheDocument()
-      expect(metaCluster).not.toHaveClass('shrink-0')
-      expect(metaCluster).toHaveClass('min-w-0')
-      expect(metaCluster).toHaveClass('justify-end')
+      expect(metaCluster).not.toHaveClass('justify-end')
+      expect(metaCluster).not.toHaveClass('min-w-0')
     }
   })
 

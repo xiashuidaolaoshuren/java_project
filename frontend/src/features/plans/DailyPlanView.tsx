@@ -113,10 +113,10 @@ export function DailyPlanView({
           {sortedItems.map((item) => (
             <li
               key={`${item.position}-${item.task.id}`}
-              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-border px-3 py-2"
+              className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2"
             >
               <span className="min-w-0 font-medium">{item.task.title}</span>
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <TaskMetaItem category="priority" icon={FlagIcon}>
                   <PriorityBadge priority={item.task.priority} />
                 </TaskMetaItem>
