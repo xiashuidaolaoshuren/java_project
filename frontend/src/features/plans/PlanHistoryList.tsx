@@ -8,6 +8,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlanDeleteButton } from '@/features/plans/PlanDeleteButton'
@@ -108,7 +109,10 @@ export function PlanHistoryList({
             className="flex flex-1 items-center justify-between rounded-lg px-2 py-2 transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <span className="font-medium">{plan.planDate}</span>
-            <span className="text-sm text-muted-foreground">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              {plan.warning != null && (
+                <Badge variant="secondary">Shortfall</Badge>
+              )}
               {formatItemCount(plan.items.length)}
             </span>
           </Link>

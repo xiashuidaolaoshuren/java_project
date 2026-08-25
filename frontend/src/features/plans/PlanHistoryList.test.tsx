@@ -20,6 +20,14 @@ const samplePlans: DailyPlanResponse[] = [
     id: 1,
     planDate: '2026-06-14',
     createdAt: '2026-06-14T09:00:00Z',
+    availableMinutes: 30,
+    warning: {
+      minimumAvailableMinutes: 60,
+      estimatedTasks: [
+        { taskId: 10, title: 'Write tests', estimatedMinutes: 60 },
+      ],
+      unestimatedTasks: [],
+    },
     items: [
       {
         position: 1,
@@ -39,6 +47,8 @@ const samplePlans: DailyPlanResponse[] = [
     id: 2,
     planDate: '2026-06-15',
     createdAt: '2026-06-15T09:00:00Z',
+    availableMinutes: null,
+    warning: null,
     items: [],
   },
 ]
@@ -84,6 +94,14 @@ describe('PlanHistoryList', () => {
     expect(links[1]).toHaveAttribute('href', '/plans/2')
     expect(links[1]).toHaveTextContent('2026-06-15')
     expect(links[1]).toHaveTextContent('0 blocks')
+  })
+
+  it('shows a Shortfall indicator only for plans with a warning', () => {
+    renderPlanHistoryList()
+
+    const links = screen.getAllByRole('link')
+    expect(links[0]).toHaveTextContent(/shortfall/i)
+    expect(links[1]).not.toHaveTextContent(/shortfall/i)
   })
 
   it('renders empty-state message when plans is empty', () => {

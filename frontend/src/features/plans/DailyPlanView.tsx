@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { DailyPlanResponse } from '@/types/api'
+import { PlanWarningAlert } from '@/features/plans/PlanWarningAlert'
 import { PriorityBadge } from '@/features/tasks/PriorityBadge'
 import { StatusBadge } from '@/features/tasks/StatusBadge'
 import { TaskMetaItem } from '@/features/tasks/TaskMetaItem'
@@ -107,6 +108,7 @@ export function DailyPlanView({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {plan.warning != null && <PlanWarningAlert warning={plan.warning} />}
         <ol className="flex flex-col gap-3">
           {sortedItems.map((item) => (
             <li

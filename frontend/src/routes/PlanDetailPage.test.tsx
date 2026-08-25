@@ -26,6 +26,8 @@ const samplePlan: DailyPlanResponse = {
   id: 1,
   planDate: '2026-06-14',
   createdAt: '2026-06-14T09:00:00Z',
+  availableMinutes: null,
+  warning: null,
   items: [
     {
       position: 1,

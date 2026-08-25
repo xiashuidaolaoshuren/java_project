@@ -25,6 +25,8 @@ describe('generateDailyPlan', () => {
       id: 1,
       planDate: '2026-06-15',
       createdAt: '2026-06-15T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [
         {
           position: 1,
@@ -72,6 +74,8 @@ describe('generateDailyPlan', () => {
       id: 2,
       planDate: '2026-06-16',
       createdAt: '2026-06-16T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [],
     }
     const fetchMock = vi.fn().mockResolvedValue(
@@ -116,6 +120,8 @@ describe('getTodayPlan', () => {
       id: 1,
       planDate: '2026-06-15',
       createdAt: '2026-06-15T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [],
     }
     const fetchMock = vi.fn().mockResolvedValue(
@@ -162,6 +168,8 @@ describe('listPlans', () => {
         id: 1,
         planDate: '2026-06-14',
         createdAt: '2026-06-14T09:00:00Z',
+        availableMinutes: null,
+        warning: null,
         items: [
           {
             position: 1,
@@ -181,6 +189,8 @@ describe('listPlans', () => {
         id: 2,
         planDate: '2026-06-15',
         createdAt: '2026-06-15T09:00:00Z',
+        availableMinutes: null,
+        warning: null,
         items: [],
       },
     ]
@@ -210,6 +220,8 @@ describe('getPlanById', () => {
       id: 42,
       planDate: '2026-06-14',
       createdAt: '2026-06-14T09:00:00Z',
+      availableMinutes: null,
+      warning: null,
       items: [
         {
           position: 1,

@@ -8,6 +8,8 @@ const samplePlan: DailyPlanResponse = {
   id: 1,
   planDate: '2026-06-15',
   createdAt: '2026-06-15T09:00:00Z',
+  availableMinutes: null,
+  warning: null,
   items: [
     {
       position: 2,
@@ -36,7 +38,37 @@ const samplePlan: DailyPlanResponse = {
   ],
 }
 
+const warningPlan: DailyPlanResponse = {
+  id: 2,
+  planDate: '2026-06-16',
+  createdAt: '2026-06-16T09:00:00Z',
+  availableMinutes: 30,
+  warning: {
+    minimumAvailableMinutes: 60,
+    estimatedTasks: [{ taskId: 10, title: 'Write tests', estimatedMinutes: 60 }],
+    unestimatedTasks: [{ taskId: 11, title: 'Tidy up' }],
+  },
+  items: [],
+}
+
 describe('DailyPlanView', () => {
+  it('renders shortfall alert when the plan has a warning', () => {
+    render(<DailyPlanView plan={warningPlan} />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(/plan needs more focus time/i)
+    expect(alert).toHaveTextContent(/at least 60 min/i)
+    expect(alert).toHaveTextContent('Write tests — 60 min')
+    expect(alert).toHaveTextContent('Tidy up — unknown duration')
+  })
+
+  it('renders no alert when the plan warning is null', () => {
+    render(<DailyPlanView plan={samplePlan} />)
+
+    expect(screen.getByText(/today's plan/i)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('renders plan items in position order with task title and focus minutes', () => {
     render(<DailyPlanView plan={samplePlan} />)
 
