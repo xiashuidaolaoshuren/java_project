@@ -18,6 +18,7 @@ import com.focusflow.common.error.GlobalExceptionHandler;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
+import com.focusflow.plan.dto.DailyPlanWarning;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.FocusFlowUserDetailsService;
 import com.focusflow.security.SecurityConfig;
@@ -128,7 +129,9 @@ class DailyPlanControllerTest {
 														TaskPriority.HIGH,
 														TaskStatus.OPEN,
 														null,
-														45)))));
+														45))),
+								null,
+								null));
 
 		mockMvc.perform(
 						post("/api/daily-plans/generate")
@@ -147,6 +150,51 @@ class DailyPlanControllerTest {
 				.andExpect(jsonPath("$.items.length()").value(1))
 				.andExpect(jsonPath("$.items[0].position").value(1))
 				.andExpect(jsonPath("$.items[0].task.title").value("Write tests"));
+	}
+
+	@Test
+	@WithMockUser
+	void generate_whenResponseIncludesWarning_rendersAvailableMinutesAndWarningJson() throws Exception {
+		when(dailyPlanService.generate(any(GeneratePlanRequest.class)))
+				.thenReturn(
+						new DailyPlanResponse(
+								1L,
+								LocalDate.of(2026, 6, 1),
+								Instant.parse("2026-06-01T09:00:00Z"),
+								List.of(
+										new DailyPlanItemResponse(
+												1,
+												new TaskResponse(
+														10L,
+														"Write tests",
+														null,
+														TaskPriority.HIGH,
+														TaskStatus.OPEN,
+														null,
+														45))),
+								120,
+								new DailyPlanWarning(
+										90,
+										List.of(new DailyPlanWarning.EstimatedTask(10L, "Write tests", 90)),
+										List.of())));
+
+		mockMvc.perform(
+						post("/api/daily-plans/generate")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "availableMinutes": 120
+										}
+										"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.availableMinutes").value(120))
+				.andExpect(jsonPath("$.warning.minimumAvailableMinutes").value(90))
+				.andExpect(jsonPath("$.warning.estimatedTasks.length()").value(1))
+				.andExpect(jsonPath("$.warning.estimatedTasks[0].taskId").value(10))
+				.andExpect(jsonPath("$.warning.estimatedTasks[0].title").value("Write tests"))
+				.andExpect(jsonPath("$.warning.estimatedTasks[0].estimatedMinutes").value(90));
 	}
 
 	@Test
@@ -199,7 +247,9 @@ class DailyPlanControllerTest {
 																TaskPriority.HIGH,
 																TaskStatus.OPEN,
 																null,
-																45))))));
+																45))),
+										null,
+										null)));
 
 		mockMvc.perform(get("/api/daily-plans"))
 				.andExpect(status().isOk())
@@ -250,7 +300,9 @@ class DailyPlanControllerTest {
 														TaskPriority.HIGH,
 														TaskStatus.OPEN,
 														null,
-														45)))));
+														45))),
+								null,
+								null));
 
 		mockMvc.perform(get("/api/daily-plans/1"))
 				.andExpect(status().isOk())

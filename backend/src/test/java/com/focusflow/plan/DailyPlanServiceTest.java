@@ -191,6 +191,108 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
+	void generate_persistsAvailableMinutesAndNullWarning_whenMustIncludeFits() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		task.setEstimatedMinutes(30);
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
+
+		User owner = new User();
+		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
+		when(dailyPlanRepository.save(any(DailyPlan.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		DailyPlanResponse response =
+				dailyPlanService.generate(new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1)));
+
+		ArgumentCaptor<DailyPlan> captor = ArgumentCaptor.forClass(DailyPlan.class);
+		verify(dailyPlanRepository).save(captor.capture());
+		assertThat(captor.getValue().getAvailableMinutes()).isEqualTo(60);
+		assertThat(captor.getValue().getWarning()).isNull();
+		assertThat(response.availableMinutes()).isEqualTo(60);
+		assertThat(response.warning()).isNull();
+	}
+
+	@Test
+	void generate_returnsWarning_whenMustIncludeOverflows() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		task.setEstimatedMinutes(60);
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
+
+		User owner = new User();
+		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
+		when(dailyPlanRepository.save(any(DailyPlan.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		DailyPlanResponse response =
+				dailyPlanService.generate(new GeneratePlanRequest(30, LocalDate.of(2026, 6, 1)));
+
+		assertThat(response.availableMinutes()).isEqualTo(30);
+		assertThat(response.warning()).isNotNull();
+		assertThat(response.warning().minimumAvailableMinutes()).isEqualTo(60);
+		assertThat(response.warning().estimatedTasks())
+				.singleElement()
+				.satisfies(
+						estimated ->
+								assertThat(estimated.taskId())
+										.isEqualTo(1L)
+										.extracting(id -> estimated.title(), id -> estimated.estimatedMinutes())
+										.containsExactly("Continue work", 60));
+		assertThat(response.warning().unestimatedTasks()).isEmpty();
+	}
+
+	@Test
+	void generate_returnsWarning_whenMustIncludeHasUnestimated() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
+
+		User owner = new User();
+		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
+		when(dailyPlanRepository.save(any(DailyPlan.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		DailyPlanResponse response =
+				dailyPlanService.generate(new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1)));
+
+		assertThat(response.warning()).isNotNull();
+		assertThat(response.warning().minimumAvailableMinutes()).isEqualTo(0);
+		assertThat(response.warning().estimatedTasks()).isEmpty();
+		assertThat(response.warning().unestimatedTasks())
+				.singleElement()
+				.satisfies(
+						unestimated -> {
+							assertThat(unestimated.taskId()).isEqualTo(1L);
+							assertThat(unestimated.title()).isEqualTo("Continue work");
+						});
+	}
+
+	@Test
 	void generate_persistsPlanAndReturnsResponse() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
@@ -258,6 +360,48 @@ class DailyPlanServiceTest {
 				.isInstanceOf(AiProviderException.class);
 
 		verify(dailyPlanRepository, never()).save(any());
+	}
+
+	@Test
+	void listForCurrentUser_mapsAvailableMinutesAndWarningFromPersistedPlan() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		DailyPlan plan = new DailyPlan();
+		plan.setPlanDate(LocalDate.of(2026, 6, 1));
+		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
+		plan.setAvailableMinutes(30);
+		plan.setWarning(
+				new DailyPlanWarningSnapshot(
+						60,
+						List.of(new DailyPlanWarningSnapshot.EstimatedTask(1L, "Continue work", 60)),
+						List.of()));
+		when(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(42L))
+				.thenReturn(List.of(plan));
+
+		List<DailyPlanResponse> responses = dailyPlanService.listForCurrentUser(null);
+
+		assertThat(responses).singleElement().satisfies(response -> {
+			assertThat(response.availableMinutes()).isEqualTo(30);
+			assertThat(response.warning()).isNotNull();
+			assertThat(response.warning().minimumAvailableMinutes()).isEqualTo(60);
+		});
+	}
+
+	@Test
+	void getForCurrentUser_whenOldPlanHasNullMinutesAndWarning_mapsNulls() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		DailyPlan plan = new DailyPlan();
+		plan.setPlanDate(LocalDate.of(2026, 6, 1));
+		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
+		when(dailyPlanRepository.findByOwner_IdAndId(42L, 7L)).thenReturn(Optional.of(plan));
+
+		DailyPlanResponse response = dailyPlanService.getForCurrentUser(7L);
+
+		assertThat(response.availableMinutes()).isNull();
+		assertThat(response.warning()).isNull();
 	}
 
 	@Test
