@@ -43,10 +43,18 @@ The Gradle wrapper is included, so a global Gradle installation is not required.
 
    `.\gradlew.bat bootRun` loads the repo-root `.env` into the Spring process automatically. You do not need `echo $env:OPENAI_*` to show values in your shell; restart `bootRun` after editing `.env`. Shell or CI environment variables still take precedence when set.
 
-4. In one terminal, run the backend. The local database schema is created or updated only when `SPRING_JPA_HIBERNATE_DDL_AUTO=update` is set because the default configuration uses `ddl-auto: none`. Restart with that same `update` setting after pulling new nullable columns (for example `available_minutes` and `warning` on `daily_plans`) so Hibernate adds them. Do not use `create` or `create-drop` on a Docker volume you want to keep:
+4. In one terminal, run the backend. On a fresh PostgreSQL database, Flyway applies the canonical schema (`V1__baseline.sql`) automatically at startup. Do not set `SPRING_JPA_HIBERNATE_DDL_AUTO=update` — schema changes belong in Flyway migrations under `backend/src/main/resources/db/migration/`.
+
+   If you have an existing local database volume created before Flyway (no `flyway_schema_history` table), startup will fail until that volume is adopted or recreated. If you do not need the data, reset the volume:
 
    ```powershell
-   $env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"
+   docker compose down -v
+   docker compose up -d
+   ```
+
+   Then start the backend:
+
+   ```powershell
    cd backend
    .\gradlew.bat bootRun
    ```

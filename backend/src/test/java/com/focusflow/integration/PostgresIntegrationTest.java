@@ -15,6 +15,7 @@ import com.focusflow.task.TaskPriority;
 import com.focusflow.task.TaskRepository;
 import com.focusflow.task.TaskStatus;
 import com.focusflow.testsupport.DailyPlanTestBuilder;
+import com.focusflow.testsupport.PostgresTestcontainerConfig;
 import com.focusflow.testsupport.TaskTestBuilder;
 import com.focusflow.testsupport.UserTestBuilder;
 import com.focusflow.user.User;
@@ -22,46 +23,18 @@ import com.focusflow.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Testcontainers
+@Import(PostgresTestcontainerConfig.class)
 class PostgresIntegrationTest {
-
-	static {
-		if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
-			System.setProperty(
-					"docker.client.strategy",
-					"org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy");
-		}
-	}
-
-	@Container
-	static final PostgreSQLContainer<?> postgres =
-			new PostgreSQLContainer<>("postgres:16-alpine")
-					.withDatabaseName("focusflow")
-					.withUsername("focusflow")
-					.withPassword("focusflow");
-
-	@DynamicPropertySource
-	static void registerDatasourceProperties(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", postgres::getJdbcUrl);
-		registry.add("spring.datasource.username", postgres::getUsername);
-		registry.add("spring.datasource.password", postgres::getPassword);
-		registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
-	}
 
 	@Autowired UserRepository userRepository;
 

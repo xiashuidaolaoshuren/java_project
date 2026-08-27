@@ -1,6 +1,5 @@
-# Test profile: datasource defaults mirror local dev (see B2 plan).
-# PostgresIntegrationTest overrides these with Testcontainers (@DynamicPropertySource),
-# so gradlew test needs Docker — not a running local PostgreSQL instance.
+# Test profile: full-context @SpringBootTest classes import PostgresTestcontainerConfig
+# (Docker required). Flyway migrates V1 at context start; Hibernate validates the schema.
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/focusflow}
@@ -10,7 +9,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     properties:
       hibernate:
         jdbc:

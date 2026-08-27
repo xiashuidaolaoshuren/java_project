@@ -5,6 +5,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/focusflow}
     username: ${SPRING_DATASOURCE_USERNAME:focusflow}
     password: ${SPRING_DATASOURCE_PASSWORD:focusflow}
+  flyway:
+    baseline-on-migrate: false
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
