@@ -10,11 +10,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public class PostgresTestcontainerConfig {
 
 	static {
-		if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
-			System.setProperty(
-					"docker.client.strategy",
-					"org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy");
-		}
+		configureWindowsDockerStrategy();
 	}
 
 	private static final PostgreSQLContainer<?> CONTAINER =
@@ -22,6 +18,14 @@ public class PostgresTestcontainerConfig {
 					.withDatabaseName("focusflow")
 					.withUsername("focusflow")
 					.withPassword("focusflow");
+
+	public static void configureWindowsDockerStrategy() {
+		if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
+			System.setProperty(
+					"docker.client.strategy",
+					"org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy");
+		}
+	}
 
 	@Bean
 	@ServiceConnection

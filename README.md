@@ -45,16 +45,37 @@ The Gradle wrapper is included, so a global Gradle installation is not required.
 
 4. In one terminal, run the backend. On a fresh PostgreSQL database, Flyway applies the canonical schema (`V1__baseline.sql`) automatically at startup. Do not set `SPRING_JPA_HIBERNATE_DDL_AUTO=update` — schema changes belong in Flyway migrations under `backend/src/main/resources/db/migration/`.
 
-   If you have an existing local database volume created before Flyway (no `flyway_schema_history` table), startup will fail until that volume is adopted or recreated. If you do not need the data, reset the volume:
+   **Existing pre-Flyway database (keep your data):**
+
+   1. Back up the database before adoption:
+
+      ```powershell
+      docker exec focusflow-postgres pg_dump -U focusflow -d focusflow -Fc -f /tmp/focusflow-pre-adopt.dump
+      docker cp focusflow-postgres:/tmp/focusflow-pre-adopt.dump ./focusflow-pre-adopt.dump
+      ```
+
+   2. Run the one-shot adoption command (preflight, then Flyway baseline at version 1):
+
+      ```powershell
+      cd backend
+      .\gradlew.bat adoptLegacySchema
+      ```
+
+   3. Start the backend normally:
+
+      ```powershell
+      .\gradlew.bat bootRun
+      ```
+
+      Do not enable `spring.flyway.baseline-on-migrate` or pass adoption flags to `bootRun`.
+
+   4. If adoption fails, restore from the backup and fix the schema mismatch before retrying. Do not run `adoptLegacySchema` again on a database that already has `flyway_schema_history`.
+
+   **Disposable local volume (no data to keep):**
 
    ```powershell
    docker compose down -v
    docker compose up -d
-   ```
-
-   Then start the backend:
-
-   ```powershell
    cd backend
    .\gradlew.bat bootRun
    ```

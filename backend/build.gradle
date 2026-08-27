@@ -91,6 +91,15 @@ tasks.named('bootRun') {
 	environment loadRepoDotEnv()
 }
 
+tasks.register('adoptLegacySchema', JavaExec) {
+	group = 'application'
+	description =
+			'One-shot legacy schema adoption: preflight V1 structure, then Flyway baseline at version 1. Not a substitute for bootRun.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.focusflow.schema.LegacySchemaAdoptionCommand'
+	environment loadRepoDotEnv()
+}
+
 tasks.register('verifyDotEnvParser') {
 	doLast {
 		assert normalizeDotEnvValue('"') == null
