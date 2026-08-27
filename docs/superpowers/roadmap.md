@@ -1,6 +1,6 @@
 # FocusFlow Roadmap — Enterprise-Grade Planning Iteration
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
 This tracks a multi-milestone iteration aimed at making FocusFlow's planning features closer to enterprise-grade: real scheduling on a clock, rest-aware planning, work that spans days, and the platform hardening needed to carry it. It exists so the milestones after the one currently in progress do not get lost between brainstorming sessions.
 
@@ -10,7 +10,7 @@ This tracks a multi-milestone iteration aimed at making FocusFlow's planning fea
 
 | Milestone | Status | Spec |
 |---|---|---|
-| 1.1.0 — Platform hardening | Spec written, awaiting review. Not yet built. | [`2026-08-26-focusflow-1.1.0-platform-hardening-design.md`](specs/2026-08-26-focusflow-1.1.0-platform-hardening-design.md) |
+| 1.1.0 — Platform hardening | Spec reviewed and ready for implementation planning. Not yet built. | [`2026-08-26-focusflow-1.1.0-platform-hardening-design.md`](specs/2026-08-26-focusflow-1.1.0-platform-hardening-design.md) |
 | 1.2.0 — The scheduled day | Not started. Scope outlined below. | — |
 | 1.3.0 — Progress and carry-over | Not started. Scope outlined below. | — |
 | 1.4.0 — Dependencies and the multi-day horizon | Not started. Scope outlined below. | — |
@@ -26,6 +26,7 @@ These were decided during the brainstorming session that produced this roadmap. 
 - **Who schedules:** the AI keeps producing a priority ordering only, exactly as it does today. A new deterministic Java scheduler takes that ordering plus the work window, break rules, and remaining effort, and places blocks on the clock, inserts breaks, and splits sessions. Correctness stops depending on model arithmetic. `DailyPlanRankingValidator` narrows from policing a full schedule to policing an ordering.
 - **Progress tracking:** actuals are recorded against plan blocks (done / partly done / skipped, with optional actual minutes), not via a live start/pause/complete timer and not via a manual remaining-minutes field on Task. Remaining effort for carry-over is derived from block actuals. This has a clean upgrade path to a live timer later without changing the underlying model.
 - **Rest model:** a focus cadence (maximum continuous focus stretch plus a break length) combined with fixed-time breaks (e.g. lunch 12:00–13:00) that the scheduler treats as unavailable time. Fixed-time commitments (meetings) use the same "unavailable time" mechanism.
+- **Planning date:** planning APIs require an explicit calendar date rather than inferring "today" from the server clock. Revisit this only after 1.2.0 defines user timezone preferences; "today" remains UI wording until then.
 
 ## 1.2.0 — The scheduled day
 

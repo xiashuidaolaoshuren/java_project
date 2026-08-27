@@ -102,6 +102,8 @@ npm run test:run
 - [API reference](docs/api.md) — session/CSRF calling rules, request/response schemas, status codes
 - [OpenAPI](docs/openapi.yaml) — machine-readable contract (OpenAPI 3.0)
 - [Architecture](docs/architecture.md) — system overview, backend components, request and generate flows, data model
+- [Domain glossary](CONTEXT.md) — canonical FocusFlow planning and task language
+- [Schema adoption decision](docs/adr/0001-explicit-legacy-schema-adoption.md) — why legacy Flyway adoption is explicit rather than automatic
 - [Roadmap](docs/superpowers/roadmap.md) — in-progress and upcoming milestones, settled cross-milestone decisions, deferred backlog
 
 ## Manual verification checklist
