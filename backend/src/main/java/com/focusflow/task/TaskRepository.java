@@ -18,4 +18,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 			Long ownerId, Collection<TaskStatus> statuses);
 
 	List<Task> findByOwner_IdAndDueDateBetween(Long ownerId, LocalDate startInclusive, LocalDate endInclusive);
+
+	List<Task> findByOwner_IdAndIdIn(Long ownerId, Collection<Long> taskIds);
 }

@@ -1,5 +1,6 @@
 package com.focusflow.task;
 
+import java.util.Collection;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -19,5 +20,12 @@ public class TaskQueryService {
 	public List<Task> findPlannableTasksByOwnerId(Long ownerId) {
 		return taskRepository.findByOwner_IdAndStatusInOrderByDueDateAsc(
 				ownerId, List.of(TaskStatus.OPEN, TaskStatus.IN_PROGRESS));
+	}
+
+	public List<Task> findOwnedTasksByIds(Long ownerId, Collection<Long> taskIds) {
+		if (taskIds.isEmpty()) {
+			return List.of();
+		}
+		return taskRepository.findByOwner_IdAndIdIn(ownerId, taskIds);
 	}
 }

@@ -6,6 +6,7 @@ import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiPlanTask;
 import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
+import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
@@ -56,7 +57,6 @@ public class DailyPlanService {
 		this.rankingValidator = rankingValidator;
 	}
 
-	@Transactional
 	public DailyPlanResponse generate(GeneratePlanRequest request) {
 		Long ownerId = currentUser.getCurrentUser().id();
 		LocalDate planDate = resolvePlanDate(request.planDate());
@@ -64,13 +64,6 @@ public class DailyPlanService {
 		if (activeTasks.isEmpty()) {
 			throw new BadRequestException("no plannable tasks available for planning");
 		}
-		Map<Long, Task> taskById =
-				activeTasks.stream()
-						.collect(
-								Collectors.toMap(
-										task -> task.getId() != null ? task.getId() : 0L,
-										Function.identity(),
-										(first, second) -> first));
 		List<AiPlanTask> aiTasks = activeTasks.stream().map(this::toAiPlanTask).toList();
 		AiDailyPlanResponse aiResponse =
 				aiClient.generate(new AiDailyPlanRequest(aiTasks, request.availableMinutes(), planDate));
@@ -78,17 +71,43 @@ public class DailyPlanService {
 				activeTasks, planDate, request.availableMinutes(), aiResponse.items());
 		DailyPlanWarningSnapshot warning =
 				computeWarning(activeTasks, planDate, request.availableMinutes());
+		return persistPlan(
+				ownerId, planDate, aiResponse.items(), request.availableMinutes(), warning);
+	}
+
+	@Transactional
+	DailyPlanResponse persistPlan(
+			Long ownerId,
+			LocalDate planDate,
+			List<AiPlanItem> aiItems,
+			int availableMinutes,
+			DailyPlanWarningSnapshot warning) {
 		User owner =
 				userRepository
 						.findById(ownerId)
 						.orElseThrow(() -> new NotFoundException("user not found"));
+		List<Long> selectedTaskIds = aiItems.stream().map(AiPlanItem::taskId).toList();
+		List<Task> reloadedTasks =
+				taskQueryService.findOwnedTasksByIds(ownerId, selectedTaskIds);
+		Map<Long, Task> taskById =
+				reloadedTasks.stream()
+						.collect(
+								Collectors.toMap(
+										task -> task.getId() != null ? task.getId() : 0L,
+										Function.identity(),
+										(first, second) -> first));
+		for (AiPlanItem aiItem : aiItems) {
+			if (!taskById.containsKey(aiItem.taskId())) {
+				throw new ConflictException("a selected task is no longer available");
+			}
+		}
 		DailyPlan plan =
 				buildPlan(
 						owner,
 						planDate,
-						aiResponse.items(),
+						aiItems,
 						taskById,
-						request.availableMinutes(),
+						availableMinutes,
 						warning);
 		return toPlanResponse(dailyPlanRepository.save(plan));
 	}

@@ -14,6 +14,7 @@ import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
+import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
@@ -26,8 +27,10 @@ import com.focusflow.task.TaskResponseMapper;
 import com.focusflow.task.TaskStatus;
 import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +39,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.mockito.Spy;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,6 +82,85 @@ class DailyPlanServiceTest {
 						rankingValidator);
 	}
 
+	private User stubSuccessfulPersist(Task... tasks) {
+		User owner = new User();
+		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
+		when(taskQueryService.findOwnedTasksByIds(eq(42L), any()))
+				.thenAnswer(
+						invocation -> {
+							@SuppressWarnings("unchecked")
+							Collection<Long> requestedIds = invocation.getArgument(1);
+							return java.util.Arrays.stream(tasks)
+									.filter(
+											task ->
+													requestedIds.contains(
+															task.getId() != null ? task.getId() : 0L))
+									.toList();
+						});
+		when(dailyPlanRepository.save(any(DailyPlan.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+		return owner;
+	}
+
+	@Test
+	void generate_delegatesToTransactionalPersistPlan() throws Exception {
+		Method generate = DailyPlanService.class.getMethod("generate", GeneratePlanRequest.class);
+		assertThat(AnnotationUtils.findAnnotation(generate, Transactional.class)).isNull();
+
+		Method persistPlan =
+				java.util.Arrays.stream(DailyPlanService.class.getDeclaredMethods())
+						.filter(method -> method.getName().equals("persistPlan"))
+						.findFirst()
+						.orElseThrow();
+		assertThat(AnnotationUtils.findAnnotation(persistPlan, Transactional.class)).isNotNull();
+
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		task.setPriority(TaskPriority.MEDIUM);
+		task.setEstimatedMinutes(30);
+
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
+
+		stubSuccessfulPersist(task);
+
+		dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1)));
+
+		verify(aiClient).generate(any(AiDailyPlanRequest.class));
+		verify(dailyPlanRepository).save(any(DailyPlan.class));
+	}
+
+	@Test
+	void generate_whenSelectedTaskDisappearedBeforePersist_throwsConflictException() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
+		task.setTitle("Continue work");
+		task.setStatus(TaskStatus.IN_PROGRESS);
+		task.setPriority(TaskPriority.MEDIUM);
+
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
+		when(userRepository.findById(42L)).thenReturn(Optional.of(new User()));
+		when(taskQueryService.findOwnedTasksByIds(eq(42L), eq(List.of(1L)))).thenReturn(List.of());
+
+		assertThatThrownBy(
+						() -> dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1))))
+				.isInstanceOf(ConflictException.class)
+				.hasMessage("a selected task is no longer available");
+
+		verify(dailyPlanRepository, never()).save(any());
+	}
+
 	@Test
 	void generate_callsAiClientWithCurrentUserActiveTasks() {
 		when(currentUser.getCurrentUser())
@@ -90,10 +174,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of()));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		stubSuccessfulPersist(task);
 
 		dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1)));
 
@@ -134,10 +215,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		stubSuccessfulPersist(task);
 
 		LocalDate planDate = LocalDate.of(2026, 6, 1);
 		dailyPlanService.generate(new GeneratePlanRequest(120, planDate));
@@ -160,10 +238,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		stubSuccessfulPersist(task);
 
 		dailyPlanService.generate(new GeneratePlanRequest(90, null));
 
@@ -206,10 +281,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		stubSuccessfulPersist(task);
 
 		DailyPlanResponse response =
 				dailyPlanService.generate(new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1)));
@@ -237,10 +309,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		stubSuccessfulPersist(task);
 
 		DailyPlanResponse response =
 				dailyPlanService.generate(new GeneratePlanRequest(30, LocalDate.of(2026, 6, 1)));
@@ -273,10 +342,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		stubSuccessfulPersist(task);
 
 		DailyPlanResponse response =
 				dailyPlanService.generate(new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1)));
@@ -308,10 +374,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(aiItem)));
 
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
+		User owner = stubSuccessfulPersist(task);
 
 		DailyPlanResponse response =
 				dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1)));

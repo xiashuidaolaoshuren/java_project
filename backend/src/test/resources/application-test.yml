@@ -20,3 +20,8 @@ focusflow:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4.1-mini}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    connect-timeout: 2s
+    read-timeout: 30s
+    max-attempts: 1
+    retry-delay: 0s
+    max-retry-after: 5s
