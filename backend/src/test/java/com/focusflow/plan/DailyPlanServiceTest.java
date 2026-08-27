@@ -16,7 +16,9 @@ import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.NotFoundException;
+import com.focusflow.common.web.PageResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
+import com.focusflow.plan.dto.DailyPlanSummaryResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
 import com.focusflow.security.UserContext;
@@ -40,6 +42,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.mockito.Spy;
@@ -240,12 +244,35 @@ class DailyPlanServiceTest {
 
 		stubSuccessfulPersist(task);
 
-		dailyPlanService.generate(new GeneratePlanRequest(90, null));
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		dailyPlanService.generate(new GeneratePlanRequest(90, planDate));
 
 		ArgumentCaptor<AiDailyPlanRequest> captor = ArgumentCaptor.forClass(AiDailyPlanRequest.class);
 		verify(aiClient).generate(captor.capture());
 		assertThat(captor.getValue().tasks()).hasSize(1);
 		assertThat(captor.getValue().tasks().getFirst().status()).isEqualTo(TaskStatus.IN_PROGRESS);
+	}
+
+	@Test
+	void generate_doesNotFallbackToTodayWhenPlanDateNull() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		Task task = new Task();
+		task.setTitle("Task 1");
+		task.setPriority(TaskPriority.HIGH);
+		task.setStatus(TaskStatus.OPEN);
+		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
+		when(aiClient.generate(any(AiDailyPlanRequest.class)))
+				.thenReturn(new AiDailyPlanResponse(List.of()));
+
+		stubSuccessfulPersist(task);
+
+		dailyPlanService.generate(new GeneratePlanRequest(60, null));
+
+		ArgumentCaptor<AiDailyPlanRequest> captor = ArgumentCaptor.forClass(AiDailyPlanRequest.class);
+		verify(aiClient).generate(captor.capture());
+		assertThat(captor.getValue().planDate()).isNull();
 	}
 
 	@Test
@@ -261,7 +288,10 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenThrow(new AiProviderException("provider down"));
 
-		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
+		assertThatThrownBy(
+						() ->
+								dailyPlanService.generate(
+										new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1))))
 				.isInstanceOf(AiProviderException.class)
 				.hasMessage("provider down");
 	}
@@ -401,7 +431,10 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of()));
 
-		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
+		assertThatThrownBy(
+						() ->
+								dailyPlanService.generate(
+										new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1))))
 				.isInstanceOf(AiProviderException.class);
 
 		verify(dailyPlanRepository, never()).save(any());
@@ -420,35 +453,167 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(999L, 1))));
 
-		assertThatThrownBy(() -> dailyPlanService.generate(new GeneratePlanRequest(60, null)))
+		assertThatThrownBy(
+						() ->
+								dailyPlanService.generate(
+										new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1))))
 				.isInstanceOf(AiProviderException.class);
 
 		verify(dailyPlanRepository, never()).save(any());
 	}
 
 	@Test
-	void listForCurrentUser_mapsAvailableMinutesAndWarningFromPersistedPlan() {
+	void listForCurrentUser_returnsPagedSummaries() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
-		DailyPlan plan = new DailyPlan();
-		plan.setPlanDate(LocalDate.of(2026, 6, 1));
-		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
-		plan.setAvailableMinutes(30);
-		plan.setWarning(
-				new DailyPlanWarningSnapshot(
-						60,
-						List.of(new DailyPlanWarningSnapshot.EstimatedTask(1L, "Continue work", 60)),
-						List.of()));
-		when(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(42L))
-				.thenReturn(List.of(plan));
+		DailyPlanSummaryProjection projection =
+				new DailyPlanSummaryProjection() {
+					@Override
+					public Long getId() {
+						return 1L;
+					}
 
-		List<DailyPlanResponse> responses = dailyPlanService.listForCurrentUser(null);
+					@Override
+					public LocalDate getPlanDate() {
+						return LocalDate.of(2026, 6, 1);
+					}
 
-		assertThat(responses).singleElement().satisfies(response -> {
-			assertThat(response.availableMinutes()).isEqualTo(30);
-			assertThat(response.warning()).isNotNull();
-			assertThat(response.warning().minimumAvailableMinutes()).isEqualTo(60);
+					@Override
+					public Instant getCreatedAt() {
+						return Instant.parse("2026-06-01T09:00:00Z");
+					}
+
+					@Override
+					public Integer getAvailableMinutes() {
+						return 30;
+					}
+
+					@Override
+					public Boolean getHasWarning() {
+						return true;
+					}
+
+					@Override
+					public Integer getItemCount() {
+						return 2;
+					}
+				};
+		when(dailyPlanRepository.findSummariesByOwner(eq(42L), eq(PageRequest.of(0, 20))))
+				.thenReturn(new PageImpl<>(List.of(projection), PageRequest.of(0, 20), 1));
+
+		PageResponse<DailyPlanSummaryResponse> response = dailyPlanService.listForCurrentUser(0, 20);
+
+		assertThat(response.content())
+				.singleElement()
+				.satisfies(
+						summary -> {
+							assertThat(summary.id()).isEqualTo(1L);
+							assertThat(summary.planDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+							assertThat(summary.itemCount()).isEqualTo(2);
+							assertThat(summary.hasWarning()).isTrue();
+							assertThat(summary.availableMinutes()).isEqualTo(30);
+						});
+		assertThat(response.page()).isZero();
+		assertThat(response.size()).isEqualTo(20);
+		assertThat(response.totalElements()).isEqualTo(1L);
+		assertThat(response.totalPages()).isEqualTo(1);
+	}
+
+	@Test
+	void listForCurrentUser_whenSizeExceedsMax_throwsBadRequestException() {
+		assertThatThrownBy(() -> dailyPlanService.listForCurrentUser(0, 101))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessage("size must be between 1 and 100");
+	}
+
+	@Test
+	void latestForCurrentUser_returnsNewestPlanForDate() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		DailyPlan newer = new DailyPlan();
+		ReflectionTestUtils.setField(newer, "id", 2L);
+		newer.setPlanDate(planDate);
+		newer.setCreatedAt(Instant.parse("2026-06-01T14:00:00Z"));
+
+		when(dailyPlanRepository.findFirstByOwner_IdAndPlanDateOrderByCreatedAtDescIdDesc(
+						42L, planDate))
+				.thenReturn(Optional.of(newer));
+
+		Optional<DailyPlanResponse> response = dailyPlanService.latestForCurrentUser(planDate);
+
+		assertThat(response)
+				.isPresent()
+				.get()
+				.satisfies(plan -> assertThat(plan.id()).isEqualTo(2L));
+	}
+
+	@Test
+	void latestForCurrentUser_whenNoneExist_returnsEmpty() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		when(dailyPlanRepository.findFirstByOwner_IdAndPlanDateOrderByCreatedAtDescIdDesc(
+						42L, LocalDate.of(2026, 6, 1)))
+				.thenReturn(Optional.empty());
+
+		assertThat(dailyPlanService.latestForCurrentUser(LocalDate.of(2026, 6, 1))).isEmpty();
+	}
+
+	@Test
+	void latestForCurrentUser_whenPlanDateMissing_throwsBadRequestException() {
+		assertThatThrownBy(() -> dailyPlanService.latestForCurrentUser(null))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessage("planDate is required");
+	}
+
+	@Test
+	void listForCurrentUser_mapsAvailableMinutesAndWarningFromProjection() {
+		when(currentUser.getCurrentUser())
+				.thenReturn(new UserContext(42L, "user@example.com", "user"));
+
+		DailyPlanSummaryProjection projection =
+				new DailyPlanSummaryProjection() {
+					@Override
+					public Long getId() {
+						return 1L;
+					}
+
+					@Override
+					public LocalDate getPlanDate() {
+						return LocalDate.of(2026, 6, 1);
+					}
+
+					@Override
+					public Instant getCreatedAt() {
+						return Instant.parse("2026-06-01T09:00:00Z");
+					}
+
+					@Override
+					public Integer getAvailableMinutes() {
+						return 30;
+					}
+
+					@Override
+					public Boolean getHasWarning() {
+						return true;
+					}
+
+					@Override
+					public Integer getItemCount() {
+						return 0;
+					}
+				};
+		when(dailyPlanRepository.findSummariesByOwner(eq(42L), eq(PageRequest.of(0, 20))))
+				.thenReturn(new PageImpl<>(List.of(projection), PageRequest.of(0, 20), 1));
+
+		PageResponse<DailyPlanSummaryResponse> response = dailyPlanService.listForCurrentUser(0, 20);
+
+		assertThat(response.content()).singleElement().satisfies(summary -> {
+			assertThat(summary.availableMinutes()).isEqualTo(30);
+			assertThat(summary.hasWarning()).isTrue();
 		});
 	}
 
@@ -466,45 +631,6 @@ class DailyPlanServiceTest {
 
 		assertThat(response.availableMinutes()).isNull();
 		assertThat(response.warning()).isNull();
-	}
-
-	@Test
-	void listForCurrentUser_whenNoPlanDate_usesAllHistoryQueryAndReturnsMappedResponses() {
-		when(currentUser.getCurrentUser())
-				.thenReturn(new UserContext(42L, "user@example.com", "user"));
-
-		DailyPlan plan = new DailyPlan();
-		plan.setPlanDate(LocalDate.of(2026, 6, 1));
-		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
-		when(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(42L))
-				.thenReturn(List.of(plan));
-
-		List<DailyPlanResponse> responses = dailyPlanService.listForCurrentUser(null);
-
-		verify(dailyPlanRepository).findAllByOwner_IdOrderByCreatedAtDesc(eq(42L));
-		assertThat(responses).singleElement().satisfies(r -> {
-			assertThat(r.planDate()).isEqualTo(LocalDate.of(2026, 6, 1));
-			assertThat(r.items()).isEmpty();
-		});
-	}
-
-	@Test
-	void listForCurrentUser_whenPlanDateProvided_usesDateFilterQuery() {
-		when(currentUser.getCurrentUser())
-				.thenReturn(new UserContext(42L, "user@example.com", "user"));
-
-		LocalDate planDate = LocalDate.of(2026, 6, 1);
-		DailyPlan plan = new DailyPlan();
-		plan.setPlanDate(planDate);
-		plan.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
-		when(dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(42L, planDate))
-				.thenReturn(List.of(plan));
-
-		List<DailyPlanResponse> responses = dailyPlanService.listForCurrentUser(planDate);
-
-		verify(dailyPlanRepository)
-				.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(eq(42L), eq(planDate));
-		assertThat(responses).singleElement().satisfies(r -> assertThat(r.planDate()).isEqualTo(planDate));
 	}
 
 	@Test

@@ -16,10 +16,13 @@ import com.focusflow.ai.AiProviderException;
 import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.GlobalExceptionHandler;
 import com.focusflow.common.error.NotFoundException;
+import com.focusflow.common.web.PageResponse;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
+import com.focusflow.plan.dto.DailyPlanSummaryResponse;
 import com.focusflow.plan.dto.DailyPlanWarning;
 import com.focusflow.plan.dto.GeneratePlanRequest;
+import java.util.Optional;
 import com.focusflow.security.FocusFlowUserDetailsService;
 import com.focusflow.security.SecurityConfig;
 import com.focusflow.task.TaskPriority;
@@ -90,6 +93,27 @@ class DailyPlanControllerTest {
 
 	@Test
 	@WithMockUser
+	void generate_whenPlanDateMissing_returns400WithDetails() throws Exception {
+		mockMvc.perform(
+						post("/api/daily-plans/generate")
+								.with(csrf())
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(
+										"""
+										{
+										  "availableMinutes": 120
+										}
+										"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.path").value("/api/daily-plans/generate"))
+				.andExpect(jsonPath("$.details.planDate").isArray());
+
+		verify(dailyPlanService, never()).generate(any(GeneratePlanRequest.class));
+	}
+
+	@Test
+	@WithMockUser
 	void generate_whenNoPlannableTasks_returns400WithMessage() throws Exception {
 		when(dailyPlanService.generate(any(GeneratePlanRequest.class)))
 				.thenThrow(new BadRequestException("no plannable tasks available for planning"));
@@ -101,7 +125,8 @@ class DailyPlanControllerTest {
 								.content(
 										"""
 										{
-										  "availableMinutes": 60
+										  "availableMinutes": 60,
+										  "planDate": "2026-06-01"
 										}
 										"""))
 				.andExpect(status().isBadRequest())
@@ -185,7 +210,8 @@ class DailyPlanControllerTest {
 								.content(
 										"""
 										{
-										  "availableMinutes": 120
+										  "availableMinutes": 120,
+										  "planDate": "2026-06-01"
 										}
 										"""))
 				.andExpect(status().isCreated())
@@ -210,7 +236,8 @@ class DailyPlanControllerTest {
 								.content(
 										"""
 										{
-										  "availableMinutes": 120
+										  "availableMinutes": 120,
+										  "planDate": "2026-06-01"
 										}
 										"""))
 				.andExpect(status().isBadGateway())
@@ -224,15 +251,62 @@ class DailyPlanControllerTest {
 		mockMvc.perform(get("/api/daily-plans"))
 				.andExpect(status().isUnauthorized());
 
-		verify(dailyPlanService, never()).listForCurrentUser(any());
+		verify(dailyPlanService, never()).listForCurrentUser(any(Integer.class), any(Integer.class));
 	}
 
 	@Test
 	@WithMockUser
-	void list_whenAuthenticated_returns200AndBody() throws Exception {
-		when(dailyPlanService.listForCurrentUser(null))
+	void list_whenAuthenticated_returns200AndPagedSummaries() throws Exception {
+		when(dailyPlanService.listForCurrentUser(0, 20))
 				.thenReturn(
-						List.of(
+						new PageResponse<>(
+								List.of(
+										new DailyPlanSummaryResponse(
+												1L,
+												LocalDate.of(2026, 6, 1),
+												Instant.parse("2026-06-01T09:00:00Z"),
+												1,
+												false,
+												120)),
+								0,
+								20,
+								1L,
+								1));
+
+		mockMvc.perform(get("/api/daily-plans"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].id").value(1))
+				.andExpect(jsonPath("$.content[0].planDate").value("2026-06-01"))
+				.andExpect(jsonPath("$.content[0].itemCount").value(1))
+				.andExpect(jsonPath("$.content[0].hasWarning").value(false))
+				.andExpect(jsonPath("$.content[0].availableMinutes").value(120))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(20))
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.totalPages").value(1));
+
+		verify(dailyPlanService).listForCurrentUser(0, 20);
+	}
+
+	@Test
+	@WithMockUser
+	void list_whenPageAndSizeProvided_passesPaginationToService() throws Exception {
+		when(dailyPlanService.listForCurrentUser(2, 10))
+				.thenReturn(new PageResponse<>(List.of(), 2, 10, 0L, 0));
+
+		mockMvc.perform(get("/api/daily-plans").param("page", "2").param("size", "10"))
+				.andExpect(status().isOk());
+
+		verify(dailyPlanService).listForCurrentUser(2, 10);
+	}
+
+	@Test
+	@WithMockUser
+	void latest_whenPlanExists_returns200AndBody() throws Exception {
+		when(dailyPlanService.latestForCurrentUser(LocalDate.of(2026, 6, 1)))
+				.thenReturn(
+						Optional.of(
 								new DailyPlanResponse(
 										1L,
 										LocalDate.of(2026, 6, 1),
@@ -248,29 +322,37 @@ class DailyPlanControllerTest {
 																TaskStatus.OPEN,
 																null,
 																45))),
-										null,
+										120,
 										null)));
 
-		mockMvc.perform(get("/api/daily-plans"))
+		mockMvc.perform(get("/api/daily-plans/latest").param("planDate", "2026-06-01"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].id").value(1))
-				.andExpect(jsonPath("$[0].planDate").value("2026-06-01"))
-				.andExpect(jsonPath("$[0].items.length()").value(1))
-				.andExpect(jsonPath("$[0].items[0].position").value(1))
-				.andExpect(jsonPath("$[0].items[0].task.title").value("Write tests"));
+				.andExpect(jsonPath("$.id").value(1))
+				.andExpect(jsonPath("$.planDate").value("2026-06-01"))
+				.andExpect(jsonPath("$.items.length()").value(1));
 	}
 
 	@Test
 	@WithMockUser
-	void list_whenPlanDateQueryProvided_passesParsedDateToService() throws Exception {
-		when(dailyPlanService.listForCurrentUser(LocalDate.of(2026, 6, 1)))
-				.thenReturn(List.of());
+	void latest_whenNoPlanExists_returns204() throws Exception {
+		when(dailyPlanService.latestForCurrentUser(LocalDate.of(2026, 6, 1)))
+				.thenReturn(Optional.empty());
 
-		mockMvc.perform(get("/api/daily-plans").param("planDate", "2026-06-01"))
-				.andExpect(status().isOk());
+		mockMvc.perform(get("/api/daily-plans/latest").param("planDate", "2026-06-01"))
+				.andExpect(status().isNoContent());
+	}
 
-		verify(dailyPlanService).listForCurrentUser(eq(LocalDate.of(2026, 6, 1)));
+	@Test
+	@WithMockUser
+	void latest_whenPlanDateMissing_returns400WithMessage() throws Exception {
+		when(dailyPlanService.latestForCurrentUser(null))
+				.thenThrow(new BadRequestException("planDate is required"));
+
+		mockMvc.perform(get("/api/daily-plans/latest"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.message").value("planDate is required"))
+				.andExpect(jsonPath("$.path").value("/api/daily-plans/latest"));
 	}
 
 	@Test

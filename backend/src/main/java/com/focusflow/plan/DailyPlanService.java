@@ -8,8 +8,10 @@ import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
 import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.NotFoundException;
+import com.focusflow.common.web.PageResponse;
 import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
+import com.focusflow.plan.dto.DailyPlanSummaryResponse;
 import com.focusflow.plan.dto.DailyPlanWarning;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
@@ -24,8 +26,11 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +64,7 @@ public class DailyPlanService {
 
 	public DailyPlanResponse generate(GeneratePlanRequest request) {
 		Long ownerId = currentUser.getCurrentUser().id();
-		LocalDate planDate = resolvePlanDate(request.planDate());
+		LocalDate planDate = request.planDate();
 		List<Task> activeTasks = taskQueryService.findPlannableTasksByOwnerId(ownerId);
 		if (activeTasks.isEmpty()) {
 			throw new BadRequestException("no plannable tasks available for planning");
@@ -112,14 +117,34 @@ public class DailyPlanService {
 		return toPlanResponse(dailyPlanRepository.save(plan));
 	}
 
-	public List<DailyPlanResponse> listForCurrentUser(LocalDate planDate) {
+	public PageResponse<DailyPlanSummaryResponse> listForCurrentUser(int page, int size) {
+		if (page < 0) {
+			throw new BadRequestException("page must be non-negative");
+		}
+		if (size < 1 || size > 100) {
+			throw new BadRequestException("size must be between 1 and 100");
+		}
 		Long ownerId = currentUser.getCurrentUser().id();
-		List<DailyPlan> plans =
-				planDate != null
-						? dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(
-								ownerId, planDate)
-						: dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(ownerId);
-		return plans.stream().map(this::toPlanResponse).toList();
+		Page<DailyPlanSummaryProjection> summaries =
+				dailyPlanRepository.findSummariesByOwner(ownerId, PageRequest.of(page, size));
+		List<DailyPlanSummaryResponse> content =
+				summaries.getContent().stream().map(this::toSummaryResponse).toList();
+		return new PageResponse<>(
+				content,
+				summaries.getNumber(),
+				summaries.getSize(),
+				summaries.getTotalElements(),
+				summaries.getTotalPages());
+	}
+
+	public Optional<DailyPlanResponse> latestForCurrentUser(LocalDate planDate) {
+		if (planDate == null) {
+			throw new BadRequestException("planDate is required");
+		}
+		Long ownerId = currentUser.getCurrentUser().id();
+		return dailyPlanRepository
+				.findFirstByOwner_IdAndPlanDateOrderByCreatedAtDescIdDesc(ownerId, planDate)
+				.map(this::toPlanResponse);
 	}
 
 	public DailyPlanResponse getForCurrentUser(Long planId) {
@@ -159,6 +184,16 @@ public class DailyPlanService {
 			plan.addItem(item);
 		}
 		return plan;
+	}
+
+	private DailyPlanSummaryResponse toSummaryResponse(DailyPlanSummaryProjection projection) {
+		return new DailyPlanSummaryResponse(
+				projection.getId(),
+				projection.getPlanDate(),
+				projection.getCreatedAt(),
+				projection.getItemCount() != null ? projection.getItemCount() : 0,
+				Boolean.TRUE.equals(projection.getHasWarning()),
+				projection.getAvailableMinutes());
 	}
 
 	private DailyPlanResponse toPlanResponse(DailyPlan plan) {
@@ -218,10 +253,6 @@ public class DailyPlanService {
 			return dueDate != null && !dueDate.isAfter(planDate);
 		}
 		return false;
-	}
-
-	private LocalDate resolvePlanDate(LocalDate planDate) {
-		return planDate != null ? planDate : LocalDate.now();
 	}
 
 	private AiPlanTask toAiPlanTask(Task task) {
