@@ -4,6 +4,8 @@ import com.focusflow.common.web.PageResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.DailyPlanSummaryResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,10 @@ public class DailyPlanController {
 	}
 
 	@GetMapping("/latest")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Latest plan found"),
+		@ApiResponse(responseCode = "204", description = "No plan for the requested date")
+	})
 	public ResponseEntity<DailyPlanResponse> latest(
 			@RequestParam(required = false) LocalDate planDate) {
 		return dailyPlanService

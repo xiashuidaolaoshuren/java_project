@@ -2,6 +2,8 @@ package com.focusflow.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -42,6 +44,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
+	@Order(2)
 	SecurityFilterChain filterChain(
 			HttpSecurity http, DaoAuthenticationProvider authenticationProvider) throws Exception {
 		CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
@@ -81,6 +84,22 @@ public class SecurityConfig {
 										.deleteCookies("JSESSIONID")
 										.clearAuthentication(true))
 				.addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
+				.build();
+	}
+
+	@Bean
+	@Profile("dev")
+	@Order(1)
+	SecurityFilterChain devSpringdocFilterChain(HttpSecurity http) throws Exception {
+		return http.securityMatcher(
+						"/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+				.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+				.csrf(
+						csrf ->
+								csrf.ignoringRequestMatchers(
+										"/v3/api-docs/**",
+										"/swagger-ui/**",
+										"/swagger-ui.html"))
 				.build();
 	}
 }

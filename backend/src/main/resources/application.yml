@@ -43,3 +43,9 @@ management:
           include: ping
         readiness:
           include: db
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
