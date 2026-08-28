@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -22,6 +24,38 @@ class GlobalExceptionHandlerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@AfterEach
+	void clearMdc() {
+		MDC.clear();
+	}
+
+	@Test
+	void notFound_includesRequestIdFromMdc() throws Exception {
+		MDC.put("requestId", "req-1");
+
+		mockMvc.perform(get("/__test/errors/not-found"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.requestId").value("req-1"));
+	}
+
+	@Test
+	void aiProvider_includesRequestIdFromMdc() throws Exception {
+		MDC.put("requestId", "req-1");
+
+		mockMvc.perform(get("/__test/errors/ai-provider"))
+				.andExpect(status().isBadGateway())
+				.andExpect(jsonPath("$.requestId").value("req-1"));
+	}
+
+	@Test
+	void genericException_includesRequestIdFromMdc() throws Exception {
+		MDC.put("requestId", "req-1");
+
+		mockMvc.perform(get("/__test/errors/generic"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.requestId").value("req-1"));
+	}
 
 	@Test
 	void notFound_returns404_withStandardBody() throws Exception {

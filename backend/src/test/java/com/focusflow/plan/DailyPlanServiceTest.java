@@ -46,6 +46,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.mockito.Spy;
 
 @ExtendWith(MockitoExtension.class)
@@ -67,7 +68,8 @@ class DailyPlanServiceTest {
 	private DailyPlanRepository dailyPlanRepository;
 
 	@Spy
-	private DailyPlanRankingValidator rankingValidator = new DailyPlanRankingValidator();
+	private DailyPlanRankingValidator rankingValidator =
+			new DailyPlanRankingValidator(new SimpleMeterRegistry());
 
 	private final TaskResponseMapper taskResponseMapper = new TaskResponseMapper();
 

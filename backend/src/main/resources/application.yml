@@ -27,3 +27,19 @@ focusflow:
     max-attempts: 2
     retry-delay: 1s
     max-retry-after: 5s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db

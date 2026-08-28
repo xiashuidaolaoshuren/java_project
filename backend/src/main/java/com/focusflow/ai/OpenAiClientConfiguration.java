@@ -1,5 +1,6 @@
 package com.focusflow.ai;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,8 +33,9 @@ public class OpenAiClientConfiguration {
 			DailyPlanPromptBuilder promptBuilder,
 			OpenAiProperties properties,
 			com.fasterxml.jackson.databind.ObjectMapper objectMapper,
-			Sleeper sleeper) {
+			Sleeper sleeper,
+			MeterRegistry meterRegistry) {
 		return new OpenAiDailyPlanClient(
-				openAiRestClient, promptBuilder, properties, objectMapper, sleeper);
+				openAiRestClient, promptBuilder, properties, objectMapper, sleeper, meterRegistry);
 	}
 }

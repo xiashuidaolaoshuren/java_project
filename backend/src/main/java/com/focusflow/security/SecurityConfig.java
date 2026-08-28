@@ -52,6 +52,10 @@ public class SecurityConfig {
 						auth ->
 								auth.requestMatchers("/api/auth/register", "/api/auth/login")
 										.permitAll()
+										.requestMatchers(
+												"/actuator/health/liveness",
+												"/actuator/health/readiness")
+										.permitAll()
 										.anyRequest()
 										.authenticated())
 				.exceptionHandling(
@@ -62,7 +66,10 @@ public class SecurityConfig {
 						csrf ->
 								csrf.csrfTokenRepository(
 												CookieCsrfTokenRepository.withHttpOnlyFalse())
-										.csrfTokenRequestHandler(csrfRequestHandler))
+										.csrfTokenRequestHandler(csrfRequestHandler)
+										.ignoringRequestMatchers(
+												"/actuator/health/liveness",
+												"/actuator/health/readiness"))
 				.securityContext(ctx -> ctx.requireExplicitSave(false))
 				.logout(
 						logout ->

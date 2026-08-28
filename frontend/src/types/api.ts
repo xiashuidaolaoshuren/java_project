@@ -8,6 +8,7 @@ export type ApiErrorResponse = {
   message: string
   path?: string
   details?: Record<string, string[]>
+  requestId?: string
 }
 
 export type LoginRequest = {

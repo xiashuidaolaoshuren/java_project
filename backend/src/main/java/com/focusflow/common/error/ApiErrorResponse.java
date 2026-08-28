@@ -12,18 +12,22 @@ public record ApiErrorResponse(
 		String error,
 		String message,
 		String path,
-		Map<String, List<String>> details) {
+		Map<String, List<String>> details,
+		String requestId) {
 
 	public static ApiErrorResponse of(
 			int status,
 			String error,
 			String message,
 			String path,
-			Map<String, List<String>> details) {
-		return new ApiErrorResponse(Instant.now(), status, error, message, path, details);
+			Map<String, List<String>> details,
+			String requestId) {
+		return new ApiErrorResponse(
+				Instant.now(), status, error, message, path, details, requestId);
 	}
 
-	public static ApiErrorResponse withoutDetails(int status, String error, String message, String path) {
-		return of(status, error, message, path, null);
+	public static ApiErrorResponse withoutDetails(
+			int status, String error, String message, String path, String requestId) {
+		return of(status, error, message, path, null, requestId);
 	}
 }

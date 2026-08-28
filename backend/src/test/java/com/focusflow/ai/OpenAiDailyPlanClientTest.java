@@ -13,6 +13,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.focusflow.task.TaskPriority;
 import com.focusflow.task.TaskStatus;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
@@ -35,10 +37,12 @@ class OpenAiDailyPlanClientTest {
 	private MockRestServiceServer mockServer;
 	private OpenAiDailyPlanClient client;
 	private DailyPlanPromptBuilder promptBuilder;
+	private SimpleMeterRegistry meterRegistry;
 
 	@BeforeEach
 	void setUp() {
 		promptBuilder = new DailyPlanPromptBuilder();
+		meterRegistry = new SimpleMeterRegistry();
 		client =
 				createClient(
 						new OpenAiProperties(
@@ -53,7 +57,8 @@ class OpenAiDailyPlanClientTest {
 		RestClient.Builder builder = RestClient.builder();
 		mockServer = MockRestServiceServer.bindTo(builder).build();
 		RestClient restClient = builder.baseUrl(BASE_URL).build();
-		return new OpenAiDailyPlanClient(restClient, promptBuilder, properties, new ObjectMapper(), sleeper);
+		return new OpenAiDailyPlanClient(
+				restClient, promptBuilder, properties, new ObjectMapper(), sleeper, meterRegistry);
 	}
 
 	@Test
@@ -258,6 +263,101 @@ class OpenAiDailyPlanClientTest {
 
 		assertThat(response.items()).isEmpty();
 		mockServer.verify();
+	}
+
+	@Test
+	void generate_recordsSuccessTimer() {
+		expectEmptySuccessResponse();
+
+		client.generate(minimalRequest());
+
+		Timer timer =
+				meterRegistry
+						.find("focusflow.ai.generate")
+						.tag("outcome", "success")
+						.timer();
+		assertThat(timer).isNotNull();
+		assertThat(timer.count()).isEqualTo(1);
+	}
+
+	@Test
+	void generate_recordsRetryCounterOn429() {
+		client =
+				createClient(
+						new OpenAiProperties(
+								"test-api-key",
+								"deepseek-chat",
+								BASE_URL,
+								null,
+								null,
+								2,
+								Duration.ZERO,
+								Duration.ZERO));
+
+		mockServer
+				.expect(requestTo(BASE_URL + "/chat/completions"))
+				.andExpect(method(HttpMethod.POST))
+				.andRespond(
+						withStatus(HttpStatus.TOO_MANY_REQUESTS)
+								.header("Retry-After", "1")
+								.body("rate limited")
+								.contentType(MediaType.APPLICATION_JSON));
+		expectEmptySuccessResponse();
+
+		client.generate(minimalRequest());
+
+		assertThat(
+						meterRegistry
+								.find("focusflow.ai.retries")
+								.tag("reason", "429")
+								.counter()
+								.count())
+				.isEqualTo(1.0);
+	}
+
+	@Test
+	void generate_recordsExhaustedFailureCounter() {
+		client =
+				createClient(
+						new OpenAiProperties(
+								"test-api-key",
+								"deepseek-chat",
+								BASE_URL,
+								null,
+								null,
+								2,
+								Duration.ZERO,
+								Duration.ZERO));
+
+		mockServer
+				.expect(requestTo(BASE_URL + "/chat/completions"))
+				.andExpect(method(HttpMethod.POST))
+				.andRespond(
+						httpRequest ->
+								{
+									throw new ResourceAccessException(
+											"Connection refused", new ConnectException("Connection refused"));
+								});
+		mockServer
+				.expect(requestTo(BASE_URL + "/chat/completions"))
+				.andExpect(method(HttpMethod.POST))
+				.andRespond(
+						httpRequest ->
+								{
+									throw new ResourceAccessException(
+											"Connection refused", new ConnectException("Connection refused"));
+								});
+
+		assertThatThrownBy(() -> client.generate(minimalRequest()))
+				.isInstanceOf(AiProviderException.class);
+
+		assertThat(
+						meterRegistry
+								.find("focusflow.ai.failures")
+								.tag("outcome", "exhausted")
+								.counter()
+								.count())
+				.isEqualTo(1.0);
 	}
 
 	@Test
