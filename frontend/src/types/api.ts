@@ -63,6 +63,25 @@ export type GeneratePlanRequest = {
   planDate?: string | null
 }
 
+/** Mirrors `com.focusflow.common.web.PageResponse` */
+export type PageResponse<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+/** Mirrors `com.focusflow.plan.dto.DailyPlanSummaryResponse` */
+export type DailyPlanSummaryResponse = {
+  id: number
+  planDate: string
+  createdAt: string
+  itemCount: number
+  hasWarning: boolean
+  availableMinutes: number | null
+}
+
 export type DailyPlanItemResponse = {
   position: number
   task: TaskResponse

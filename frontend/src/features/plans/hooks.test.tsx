@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { DailyPlanResponse } from '@/types/api'
+import type { DailyPlanResponse, DailyPlanSummaryResponse, PageResponse } from '@/types/api'
 
 import {
   planDetailQueryKey,
@@ -54,6 +54,23 @@ function createWrapper(queryClient?: QueryClient) {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     )
   }
+}
+
+const sampleSummary: DailyPlanSummaryResponse = {
+  id: 1,
+  planDate: '2026-06-15',
+  createdAt: '2026-06-15T09:00:00Z',
+  itemCount: 1,
+  hasWarning: false,
+  availableMinutes: null,
+}
+
+const samplePage: PageResponse<DailyPlanSummaryResponse> = {
+  content: [sampleSummary],
+  page: 0,
+  size: 20,
+  totalElements: 1,
+  totalPages: 1,
 }
 
 const samplePlan: DailyPlanResponse = {
@@ -114,7 +131,7 @@ describe('useGeneratePlan', () => {
       queryKey: todayPlanQueryKey,
     })
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: plansQueryKey,
+      queryKey: ['plans', 'list'],
     })
   })
 })
@@ -161,24 +178,35 @@ describe('usePlans', () => {
     vi.clearAllMocks()
   })
 
-  it('fetches plans on mount and exposes plans and isEmpty', async () => {
-    mockedListPlans.mockResolvedValue([samplePlan])
+  it('uses a paged query key', () => {
+    expect(plansQueryKey(0, 20)).toEqual(['plans', 'list', 0, 20])
+  })
 
-    const { result } = renderHook(() => usePlans(), {
+  it('fetches plans on mount and exposes plans, page envelope, and isEmpty', async () => {
+    mockedListPlans.mockResolvedValue(samplePage)
+
+    const { result } = renderHook(() => usePlans(0, 20), {
       wrapper: createWrapper(),
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(mockedListPlans).toHaveBeenCalled()
-    expect(result.current.plans).toEqual([samplePlan])
+    expect(mockedListPlans).toHaveBeenCalledWith(0, 20)
+    expect(result.current.plans).toEqual([sampleSummary])
+    expect(result.current.page).toEqual(samplePage)
     expect(result.current.isEmpty).toBe(false)
   })
 
   it('exposes isEmpty when no plans are returned', async () => {
-    mockedListPlans.mockResolvedValue([])
+    mockedListPlans.mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+    })
 
-    const { result } = renderHook(() => usePlans(), {
+    const { result } = renderHook(() => usePlans(0, 20), {
       wrapper: createWrapper(),
     })
 
@@ -245,7 +273,7 @@ describe('useDeletePlan', () => {
       queryKey: todayPlanQueryKey,
     })
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: plansQueryKey,
+      queryKey: ['plans', 'list'],
     })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: planDetailQueryKey(1),

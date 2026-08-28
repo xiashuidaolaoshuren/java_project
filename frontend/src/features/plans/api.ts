@@ -1,5 +1,10 @@
 import { apiRequest } from '@/lib/api'
-import type { DailyPlanResponse, GeneratePlanRequest } from '@/types/api'
+import type {
+  DailyPlanResponse,
+  DailyPlanSummaryResponse,
+  GeneratePlanRequest,
+  PageResponse,
+} from '@/types/api'
 
 function getTodayDateString(): string {
   const now = new Date()
@@ -9,8 +14,17 @@ function getTodayDateString(): string {
   return `${year}-${month}-${day}`
 }
 
-export async function listPlans(): Promise<DailyPlanResponse[]> {
-  return apiRequest<DailyPlanResponse[]>('/api/daily-plans')
+export async function listPlans(
+  page: number,
+  size: number,
+): Promise<PageResponse<DailyPlanSummaryResponse>> {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  })
+  return apiRequest<PageResponse<DailyPlanSummaryResponse>>(
+    `/api/daily-plans?${params}`,
+  )
 }
 
 export async function getPlanById(id: number): Promise<DailyPlanResponse> {
@@ -19,10 +33,10 @@ export async function getPlanById(id: number): Promise<DailyPlanResponse> {
 
 export async function getTodayPlan(): Promise<DailyPlanResponse | null> {
   const planDate = getTodayDateString()
-  const plans = await apiRequest<DailyPlanResponse[]>(
-    `/api/daily-plans?planDate=${encodeURIComponent(planDate)}`,
+  const plan = await apiRequest<DailyPlanResponse | undefined>(
+    `/api/daily-plans/latest?planDate=${encodeURIComponent(planDate)}`,
   )
-  return plans[0] ?? null
+  return plan ?? null
 }
 
 export async function generateDailyPlan(
