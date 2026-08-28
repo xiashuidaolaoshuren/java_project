@@ -8,7 +8,7 @@ This document describes how the system is structured, what each backend componen
 
 FocusFlow AI is a session-based full-stack app:
 
-- **Backend** — Spring Boot (Java 21), JPA/Hibernate, PostgreSQL. Exposes a JSON REST API under `/api`.
+- **Backend** — Spring Boot (Java 21), JPA/Hibernate, PostgreSQL, Flyway migrations. Exposes a JSON REST API under `/api`.
 - **Frontend** — React, TypeScript, Vite. Talks to the backend through a dev proxy with cookie credentials and CSRF headers.
 - **External AI** — OpenAI-compatible HTTP API for daily-plan generation (configurable via env vars).
 
@@ -37,13 +37,14 @@ flowchart LR
 
 ## Request path
 
-Every HTTP request passes through Spring Security before reaching a controller:
+Every HTTP request passes through observability and security filters before reaching a controller:
 
-1. **Security filter chain** — Session cookie (`JSESSIONID`) checked for protected routes. CSRF validated on `POST`/`PUT`/`DELETE`. Unauthenticated requests to protected routes return **401**.
-2. **Controller** — Validates request DTOs (`@Valid`), delegates to a service, returns response DTOs. No repository access.
-3. **Service** — Business logic and transactions. Resolves the current user via `CurrentUser` → `UserContext`. Owner-scoped reads use `findByOwner_IdAndId` patterns.
-4. **Repository** — Persistence only. Plan reads use `@EntityGraph` to load items and nested tasks while `open-in-view` is disabled.
-5. **Exception handling** — `GlobalExceptionHandler` maps domain exceptions to `ApiErrorResponse` JSON (**400**, **404**, **409**, **502**, etc.).
+1. **Request ID filter** — Validates or generates `X-Request-Id`, sets MDC for logging, echoes the header on every response (including **401**/**403**).
+2. **Security filter chain** — Session cookie (`JSESSIONID`) checked for protected routes. CSRF validated on `POST`/`PUT`/`DELETE`. Public routes: register/login and detail-free liveness/readiness probes. Unauthenticated requests to protected routes return **401**.
+3. **Controller** — Validates request DTOs (`@Valid`), delegates to a service, returns response DTOs. No repository access.
+4. **Service** — Business logic and transactions. Resolves the current user via `CurrentUser` → `UserContext`. Owner-scoped reads use `findByOwner_IdAndId` patterns.
+5. **Repository** — Persistence only. Plan detail reads use `@EntityGraph` to load items and nested tasks; list/history uses projection queries that never load item graphs.
+6. **Exception handling** — `GlobalExceptionHandler` maps domain exceptions to `ApiErrorResponse` JSON (**400**, **404**, **409**, **502**, etc.), including optional `requestId` from MDC.
 
 ```mermaid
 sequenceDiagram
@@ -66,17 +67,37 @@ sequenceDiagram
 
 ## Backend components
 
-### `security` — authentication and CSRF
+### `security` — authentication, CSRF, and probes
 
 | Component | Role |
 |-----------|------|
-| `SecurityConfig` | Filter chain: public register/login; session auth elsewhere; cookie CSRF; logout at `POST /api/auth/logout` |
+| `SecurityConfig` | Main filter chain: public register/login; session auth elsewhere; cookie CSRF; logout at `POST /api/auth/logout`. Public liveness/readiness actuator probes. Dev-profile chain permits Swagger/OpenAPI paths only. |
 | `FocusFlowUserDetailsService` | Loads `User` by username for Spring Security |
 | `CsrfCookieFilter` | Ensures `XSRF-TOKEN` cookie is available to clients |
 | `CurrentUser` | Reads `SecurityContext`, returns `UserContext` (id, email, username) to services |
 | `UserContext` | Internal identity record — not an HTTP DTO |
 
 Services never depend on auth API DTOs; they call `currentUser.getCurrentUser()` for the owner id.
+
+### `common/observability` — request correlation and probes
+
+| Component | Role |
+|-----------|------|
+| `RequestIdFilter` | Servlet filter (highest precedence): validate/generate `X-Request-Id`, MDC, response header echo |
+| `ObservabilityConfig` | Registers `RequestIdFilter` before Spring Security |
+| Actuator (config) | Exposes health (with liveness/readiness groups) and metrics; aggregate health and metrics require a session |
+
+Micrometer counters/timers in `OpenAiDailyPlanClient` and `DailyPlanRankingValidator` record bounded provider and ranking-rejection tags.
+
+### Schema and migrations — Flyway
+
+| Component | Role |
+|-----------|------|
+| `db/migration/V1__baseline.sql` | Canonical PostgreSQL schema (users, tasks, daily plans, items) |
+| Flyway auto-config | Applies migrations at startup; `ddl-auto: none` in default profile |
+| `LegacySchemaAdoptionCommand` | One-shot operator command: preflight existing DB, baseline at V1 (see README) |
+
+Integration tests use the same Testcontainers Postgres fixture and Flyway migrations; Hibernate `validate` in the test profile checks entity/schema agreement.
 
 ### `user` — accounts
 
@@ -112,12 +133,14 @@ The plan feature reads tasks only through `TaskQueryService`, not `TaskRepositor
 
 | Component | Role |
 |-----------|------|
-| `DailyPlanController` | List, get, delete, generate under `/api/daily-plans` |
-| `DailyPlanService` | Orchestrates generate, list/get/delete; maps entities to `DailyPlanResponse` |
-| `DailyPlanRankingValidator` | Reject-not-repair validation of AI ordering (must-include blocks, leftover budget) |
+| `DailyPlanController` | Paged summary list, latest (200/204), get-by-id, delete, generate under `/api/daily-plans` |
+| `DailyPlanService` | Orchestrates generate, list/get/latest/delete; maps entities to response DTOs |
+| `DailyPlanRankingValidator` | Reject-not-repair validation of AI ordering; increments Micrometer rejection counter with bounded reason tag |
 | `DailyPlan` / `DailyPlanItem` | Aggregate: plan owns ordered items; each item references a live `Task` |
 | `DailyPlanWarningSnapshot` | JSON snapshot persisted on the plan at generate time |
-| `DailyPlanRepository` | Owner-scoped reads with eager graph for items + tasks |
+| `DailyPlanRepository` | Owner-scoped reads: projection queries for paged summaries; `@EntityGraph` for detail and latest |
+
+**Summary vs detail:** History list endpoints return `DailyPlanSummaryResponse` via repository projections (`itemCount`, `hasWarning`) without loading plan items or tasks. Detail, generate, and latest load the full graph for `DailyPlanResponse`.
 
 **Generate flow** (the main orchestration):
 
@@ -134,6 +157,7 @@ sequenceDiagram
   alt no plannable tasks
     PlanService-->>Controller: 400 BadRequest
   end
+  Note over PlanService,AI: No DB transaction during provider call
   PlanService->>AI: AiDailyPlanRequest
   AI-->>PlanService: AiDailyPlanResponse
   PlanService->>Validator: validate ranking
@@ -141,18 +165,20 @@ sequenceDiagram
     PlanService-->>Controller: 502 AiProviderException
   end
   PlanService->>PlanService: computeWarning snapshot
-  PlanService->>Repo: save DailyPlan + items
+  PlanService->>Repo: persistPlan (short @Transactional)
   PlanService-->>Controller: DailyPlanResponse
 ```
 
 Steps in code:
 
 1. Load plannable tasks (`OPEN`, `IN_PROGRESS`). Empty → **400**, no provider call.
-2. Build `AiPlanTask` list and call `DailyPlanAiClient.generate`.
+2. Call `DailyPlanAiClient.generate` **outside** a database transaction (retries/timeouts cannot hold a connection).
 3. `DailyPlanRankingValidator.validate` — reject invalid AI output; throw `AiProviderException` → **502**, nothing saved.
 4. `computeWarning` from must-include candidates (IN_PROGRESS + due/overdue OPEN).
-5. Persist `DailyPlan` with items, `availableMinutes`, and warning snapshot.
+5. `persistPlan` (transactional) saves `DailyPlan` with items, `availableMinutes`, and warning snapshot.
 6. Map to `DailyPlanResponse` (warning is never recomputed on read).
+
+**Latest for a date:** `GET /api/daily-plans/latest?planDate=...` returns the newest plan for that calendar date, or **204** when none exists.
 
 **Delete** removes the plan and its items only; referenced tasks remain.
 
@@ -161,7 +187,7 @@ Steps in code:
 | Component | Role |
 |-----------|------|
 | `DailyPlanAiClient` | Interface — mockable in tests |
-| `OpenAiDailyPlanClient` | OpenAI-compatible HTTP implementation |
+| `OpenAiDailyPlanClient` | OpenAI-compatible HTTP implementation with bounded retry/timeouts and Micrometer timers/counters |
 | `DailyPlanPromptBuilder` | Prompt text with task lines, status, ranking rules |
 | `AiProviderException` | Provider/validation failures → **502** via `GlobalExceptionHandler` |
 | `OpenAiProperties` / `OpenAiClientConfiguration` | Env-driven model, base URL, API key |
@@ -177,7 +203,7 @@ The plan service depends on the interface, not the HTTP client directly.
 | `NotFoundException` | **404** (missing or not owned) |
 | `ConflictException` | **409** (duplicate email/username) |
 | `ForbiddenOperationException` | **403** |
-| `ApiErrorResponse` | Shared JSON error shape |
+| `ApiErrorResponse` | Shared JSON error shape (optional `requestId`) |
 
 ## Data model
 

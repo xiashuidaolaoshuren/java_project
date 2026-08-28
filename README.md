@@ -82,6 +82,15 @@ The Gradle wrapper is included, so a global Gradle installation is not required.
 
    API base URL: `http://localhost:8080`
 
+   **Optional — Swagger UI (dev profile only):**
+
+   ```powershell
+   cd backend
+   .\gradlew.bat bootRun --args="--spring.profiles.active=dev"
+   ```
+
+   Then open `http://localhost:8080/swagger-ui/index.html`. OpenAPI JSON is at `/v3/api-docs`. Without the `dev` profile, those paths are not exposed.
+
 5. In a second terminal, install frontend dependencies once and start Vite:
 
    ```powershell
@@ -124,12 +133,16 @@ npm run build
 
 # Optional frontend test suite
 npm run test:run
+
+# Regenerate committed OpenAPI snapshot after intentional API changes
+cd backend
+.\gradlew.bat updateOpenApiSnapshot
 ```
 
 ## Documentation
 
 - [API reference](docs/api.md) — session/CSRF calling rules, request/response schemas, status codes
-- [OpenAPI](docs/openapi.yaml) — machine-readable contract (OpenAPI 3.0)
+- [OpenAPI](docs/openapi.yaml) — generated machine-readable contract (OpenAPI 3); refresh with `.\gradlew.bat updateOpenApiSnapshot` in `backend/`
 - [Architecture](docs/architecture.md) — system overview, backend components, request and generate flows, data model
 - [Domain glossary](CONTEXT.md) — canonical FocusFlow planning and task language
 - [Schema adoption decision](docs/adr/0001-explicit-legacy-schema-adoption.md) — why legacy Flyway adoption is explicit rather than automatic
@@ -142,7 +155,9 @@ With Docker, the backend, and Vite running, verify these through the browser at 
 - An unauthenticated `GET /api/auth/me` or `GET /api/tasks` returns **401**.
 - Register or log in. The browser holds an HttpOnly `JSESSIONID`; refresh still succeeds at `GET /api/auth/me`; do not store an auth token in local storage.
 - Create, list, update, change status, and delete a task. Changes survive refresh. Mutating requests send the `X-XSRF-TOKEN` header.
-- With at least one plannable task (`OPEN` or `IN_PROGRESS`) and a configured provider key, generate a plan. It returns **201** and is available from `/plans` and `/plans/:id`. `IN_PROGRESS`-only is valid.
+- With at least one plannable task (`OPEN` or `IN_PROGRESS`) and a configured provider key, generate a plan. It returns **201** and is available from `/plans` and `/plans/:id`. `IN_PROGRESS`-only is valid. The request body must include explicit `planDate` (`YYYY-MM-DD`); omitting it returns **400**.
+- On the dashboard, when no plan exists for today, `GET /api/daily-plans/latest?planDate=...` returns **204** and the UI shows the empty state (not an error).
+- Plan history at `/plans` shows summary rows with pagination; open a row for full detail.
 - For a user with no plannable tasks, generation returns **400** with `no plannable tasks available for planning`; it does not call the provider or save an empty plan.
 - A failed provider call returns **502** and saves no partial plan. Use an empty or invalid key only when intentionally checking this path; do not spend an extra provider credit just to repeat it.
 - Delete a plan from `/plans` or `/plans/:id` after the confirm dialog. Success is **204**; the plan and its items are gone, tasks remain. Detail delete navigates to `/plans`. The dashboard has no delete control.
@@ -171,6 +186,6 @@ docker-compose.yml   Local PostgreSQL service
 scripts/             Optional manual HTTP verification helpers
 docs/                API reference, OpenAPI, architecture, design notes, and plans
   api.md             Human-readable API calling guide
-  openapi.yaml       OpenAPI 3.0 contract
+  openapi.yaml       Generated OpenAPI contract (refresh via updateOpenApiSnapshot)
   architecture.md    System architecture, components, and learning map
 ```
