@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,11 +15,11 @@ import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
-import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.common.web.PageResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.DailyPlanSummaryResponse;
+import com.focusflow.plan.dto.DailyPlanWarning;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
 import com.focusflow.security.UserContext;
@@ -32,7 +33,6 @@ import com.focusflow.user.UserRepository;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,11 +67,15 @@ class DailyPlanServiceTest {
 	@Mock
 	private DailyPlanRepository dailyPlanRepository;
 
+	@Mock
+	private DailyPlanPersister persister;
+
 	@Spy
 	private DailyPlanRankingValidator rankingValidator =
 			new DailyPlanRankingValidator(new SimpleMeterRegistry());
 
-	private final TaskResponseMapper taskResponseMapper = new TaskResponseMapper();
+	private final DailyPlanResponseMapper responseMapper =
+			new DailyPlanResponseMapper(new TaskResponseMapper());
 
 	private DailyPlanService dailyPlanService;
 
@@ -84,28 +88,26 @@ class DailyPlanServiceTest {
 						userRepository,
 						currentUser,
 						dailyPlanRepository,
-						taskResponseMapper,
+						persister,
+						responseMapper,
 						rankingValidator);
 	}
 
-	private User stubSuccessfulPersist(Task... tasks) {
-		User owner = new User();
-		when(userRepository.findById(42L)).thenReturn(Optional.of(owner));
-		when(taskQueryService.findOwnedTasksByIds(eq(42L), any()))
-				.thenAnswer(
-						invocation -> {
-							@SuppressWarnings("unchecked")
-							Collection<Long> requestedIds = invocation.getArgument(1);
-							return java.util.Arrays.stream(tasks)
-									.filter(
-											task ->
-													requestedIds.contains(
-															task.getId() != null ? task.getId() : 0L))
-									.toList();
-						});
-		when(dailyPlanRepository.save(any(DailyPlan.class)))
-				.thenAnswer(invocation -> invocation.getArgument(0));
-		return owner;
+	private DailyPlanResponse stubPersisterReturn(int availableMinutes, DailyPlanWarning warning) {
+		DailyPlanResponse response =
+				new DailyPlanResponse(
+						null,
+						LocalDate.of(2026, 6, 1),
+						Instant.parse("2026-06-01T09:00:00Z"),
+						List.of(),
+						availableMinutes,
+						warning);
+		when(persister.persistPlan(any(), any(), any(), anyInt(), any())).thenReturn(response);
+		return response;
+	}
+
+	private void stubPersisterReturn(DailyPlanResponse response) {
+		when(persister.persistPlan(any(), any(), any(), anyInt(), any())).thenReturn(response);
 	}
 
 	@Test
@@ -114,10 +116,13 @@ class DailyPlanServiceTest {
 		assertThat(AnnotationUtils.findAnnotation(generate, Transactional.class)).isNull();
 
 		Method persistPlan =
-				java.util.Arrays.stream(DailyPlanService.class.getDeclaredMethods())
-						.filter(method -> method.getName().equals("persistPlan"))
-						.findFirst()
-						.orElseThrow();
+				DailyPlanPersister.class.getMethod(
+						"persistPlan",
+						Long.class,
+						LocalDate.class,
+						List.class,
+						int.class,
+						DailyPlanWarningSnapshot.class);
 		assertThat(AnnotationUtils.findAnnotation(persistPlan, Transactional.class)).isNotNull();
 
 		when(currentUser.getCurrentUser())
@@ -134,37 +139,14 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		stubSuccessfulPersist(task);
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		stubPersisterReturn(120, null);
 
-		dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1)));
+		dailyPlanService.generate(new GeneratePlanRequest(120, planDate));
 
 		verify(aiClient).generate(any(AiDailyPlanRequest.class));
-		verify(dailyPlanRepository).save(any(DailyPlan.class));
-	}
-
-	@Test
-	void generate_whenSelectedTaskDisappearedBeforePersist_throwsConflictException() {
-		when(currentUser.getCurrentUser())
-				.thenReturn(new UserContext(42L, "user@example.com", "user"));
-
-		Task task = new Task();
-		ReflectionTestUtils.setField(task, "id", 1L);
-		task.setTitle("Continue work");
-		task.setStatus(TaskStatus.IN_PROGRESS);
-		task.setPriority(TaskPriority.MEDIUM);
-
-		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
-		when(aiClient.generate(any(AiDailyPlanRequest.class)))
-				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
-		when(userRepository.findById(42L)).thenReturn(Optional.of(new User()));
-		when(taskQueryService.findOwnedTasksByIds(eq(42L), eq(List.of(1L)))).thenReturn(List.of());
-
-		assertThatThrownBy(
-						() -> dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1))))
-				.isInstanceOf(ConflictException.class)
-				.hasMessage("a selected task is no longer available");
-
-		verify(dailyPlanRepository, never()).save(any());
+		verify(persister)
+				.persistPlan(eq(42L), eq(planDate), eq(List.of(new AiPlanItem(1L, 1))), eq(120), eq(null));
 	}
 
 	@Test
@@ -180,7 +162,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of()));
 
-		stubSuccessfulPersist(task);
+		stubPersisterReturn(120, null);
 
 		dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1)));
 
@@ -202,7 +184,7 @@ class DailyPlanServiceTest {
 				.hasMessage("no plannable tasks available for planning");
 
 		verify(aiClient, never()).generate(any());
-		verify(dailyPlanRepository, never()).save(any());
+		verify(persister, never()).persistPlan(any(), any(), any(), anyInt(), any());
 	}
 
 	@Test
@@ -221,7 +203,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		stubSuccessfulPersist(task);
+		stubPersisterReturn(120, null);
 
 		LocalDate planDate = LocalDate.of(2026, 6, 1);
 		dailyPlanService.generate(new GeneratePlanRequest(120, planDate));
@@ -244,7 +226,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		stubSuccessfulPersist(task);
+		stubPersisterReturn(120, null);
 
 		LocalDate planDate = LocalDate.of(2026, 6, 1);
 		dailyPlanService.generate(new GeneratePlanRequest(90, planDate));
@@ -268,7 +250,7 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of()));
 
-		stubSuccessfulPersist(task);
+		stubPersisterReturn(120, null);
 
 		dailyPlanService.generate(new GeneratePlanRequest(60, null));
 
@@ -299,7 +281,7 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
-	void generate_persistsAvailableMinutesAndNullWarning_whenMustIncludeFits() {
+	void generate_delegatesNullWarning_whenMustIncludeFits() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
@@ -313,21 +295,24 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		stubSuccessfulPersist(task);
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		DailyPlanResponse stubbed = stubPersisterReturn(60, null);
 
 		DailyPlanResponse response =
-				dailyPlanService.generate(new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1)));
+				dailyPlanService.generate(new GeneratePlanRequest(60, planDate));
 
-		ArgumentCaptor<DailyPlan> captor = ArgumentCaptor.forClass(DailyPlan.class);
-		verify(dailyPlanRepository).save(captor.capture());
-		assertThat(captor.getValue().getAvailableMinutes()).isEqualTo(60);
-		assertThat(captor.getValue().getWarning()).isNull();
+		ArgumentCaptor<DailyPlanWarningSnapshot> warningCaptor =
+				ArgumentCaptor.forClass(DailyPlanWarningSnapshot.class);
+		verify(persister)
+				.persistPlan(eq(42L), eq(planDate), any(), eq(60), warningCaptor.capture());
+		assertThat(warningCaptor.getValue()).isNull();
+		assertThat(response).isSameAs(stubbed);
 		assertThat(response.availableMinutes()).isEqualTo(60);
 		assertThat(response.warning()).isNull();
 	}
 
 	@Test
-	void generate_returnsWarning_whenMustIncludeOverflows() {
+	void generate_delegatesOverflowWarning_whenMustIncludeOverflows() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
@@ -341,11 +326,24 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		stubSuccessfulPersist(task);
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		DailyPlanWarning warning =
+				new DailyPlanWarning(
+						60,
+						List.of(new DailyPlanWarning.EstimatedTask(1L, "Continue work", 60)),
+						List.of());
+		stubPersisterReturn(30, warning);
 
 		DailyPlanResponse response =
-				dailyPlanService.generate(new GeneratePlanRequest(30, LocalDate.of(2026, 6, 1)));
+				dailyPlanService.generate(new GeneratePlanRequest(30, planDate));
 
+		ArgumentCaptor<DailyPlanWarningSnapshot> warningCaptor =
+				ArgumentCaptor.forClass(DailyPlanWarningSnapshot.class);
+		verify(persister)
+				.persistPlan(eq(42L), eq(planDate), any(), eq(30), warningCaptor.capture());
+		assertThat(warningCaptor.getValue().minimumAvailableMinutes()).isEqualTo(60);
+		assertThat(warningCaptor.getValue().estimatedTasks()).hasSize(1);
+		assertThat(warningCaptor.getValue().unestimatedTasks()).isEmpty();
 		assertThat(response.availableMinutes()).isEqualTo(30);
 		assertThat(response.warning()).isNotNull();
 		assertThat(response.warning().minimumAvailableMinutes()).isEqualTo(60);
@@ -361,7 +359,7 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
-	void generate_returnsWarning_whenMustIncludeHasUnestimated() {
+	void generate_delegatesUnestimatedWarning_whenMustIncludeHasUnestimated() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
@@ -374,11 +372,22 @@ class DailyPlanServiceTest {
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(new AiPlanItem(1L, 1))));
 
-		stubSuccessfulPersist(task);
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		DailyPlanWarning warning =
+				new DailyPlanWarning(
+						0,
+						List.of(),
+						List.of(new DailyPlanWarning.UnestimatedTask(1L, "Continue work")));
+		stubPersisterReturn(60, warning);
 
 		DailyPlanResponse response =
-				dailyPlanService.generate(new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1)));
+				dailyPlanService.generate(new GeneratePlanRequest(60, planDate));
 
+		ArgumentCaptor<DailyPlanWarningSnapshot> warningCaptor =
+				ArgumentCaptor.forClass(DailyPlanWarningSnapshot.class);
+		verify(persister)
+				.persistPlan(eq(42L), eq(planDate), any(), eq(60), warningCaptor.capture());
+		assertThat(warningCaptor.getValue().unestimatedTasks()).hasSize(1);
 		assertThat(response.warning()).isNotNull();
 		assertThat(response.warning().minimumAvailableMinutes()).isEqualTo(0);
 		assertThat(response.warning().estimatedTasks()).isEmpty();
@@ -392,31 +401,30 @@ class DailyPlanServiceTest {
 	}
 
 	@Test
-	void generate_persistsPlanAndReturnsResponse() {
+	void generate_delegatesPersistPlanAndReturnsResponse() {
 		when(currentUser.getCurrentUser())
 				.thenReturn(new UserContext(42L, "user@example.com", "user"));
 
 		Task task = new Task();
+		ReflectionTestUtils.setField(task, "id", 1L);
 		task.setTitle("Task 1");
 		task.setPriority(TaskPriority.HIGH);
 		task.setStatus(TaskStatus.OPEN);
 		when(taskQueryService.findPlannableTasksByOwnerId(42L)).thenReturn(List.of(task));
 
-		AiPlanItem aiItem = new AiPlanItem(task.getId() != null ? task.getId() : 0L, 1);
+		AiPlanItem aiItem = new AiPlanItem(1L, 1);
 		when(aiClient.generate(any(AiDailyPlanRequest.class)))
 				.thenReturn(new AiDailyPlanResponse(List.of(aiItem)));
 
-		User owner = stubSuccessfulPersist(task);
+		LocalDate planDate = LocalDate.of(2026, 6, 1);
+		DailyPlanResponse stubbed = stubPersisterReturn(120, null);
 
 		DailyPlanResponse response =
-				dailyPlanService.generate(new GeneratePlanRequest(120, LocalDate.of(2026, 6, 1)));
+				dailyPlanService.generate(new GeneratePlanRequest(120, planDate));
 
-		ArgumentCaptor<DailyPlan> captor = ArgumentCaptor.forClass(DailyPlan.class);
-		verify(dailyPlanRepository).save(captor.capture());
-		assertThat(captor.getValue().getOwner()).isSameAs(owner);
-		assertThat(captor.getValue().getPlanDate()).isEqualTo(LocalDate.of(2026, 6, 1));
-		assertThat(captor.getValue().getItems()).hasSize(1);
-		assertThat(response).isNotNull();
+		verify(persister)
+				.persistPlan(eq(42L), eq(planDate), eq(List.of(aiItem)), eq(120), eq(null));
+		assertThat(response).isSameAs(stubbed);
 	}
 
 	@Test
@@ -439,7 +447,7 @@ class DailyPlanServiceTest {
 										new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1))))
 				.isInstanceOf(AiProviderException.class);
 
-		verify(dailyPlanRepository, never()).save(any());
+		verify(persister, never()).persistPlan(any(), any(), any(), anyInt(), any());
 	}
 
 	@Test
@@ -461,7 +469,7 @@ class DailyPlanServiceTest {
 										new GeneratePlanRequest(60, LocalDate.of(2026, 6, 1))))
 				.isInstanceOf(AiProviderException.class);
 
-		verify(dailyPlanRepository, never()).save(any());
+		verify(persister, never()).persistPlan(any(), any(), any(), anyInt(), any());
 	}
 
 	@Test

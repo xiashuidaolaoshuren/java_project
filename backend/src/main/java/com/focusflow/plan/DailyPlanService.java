@@ -2,33 +2,23 @@ package com.focusflow.plan;
 
 import com.focusflow.ai.AiDailyPlanRequest;
 import com.focusflow.ai.AiDailyPlanResponse;
-import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiPlanTask;
 import com.focusflow.ai.DailyPlanAiClient;
 import com.focusflow.common.error.BadRequestException;
-import com.focusflow.common.error.ConflictException;
 import com.focusflow.common.error.NotFoundException;
 import com.focusflow.common.web.PageResponse;
-import com.focusflow.plan.dto.DailyPlanItemResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
 import com.focusflow.plan.dto.DailyPlanSummaryResponse;
-import com.focusflow.plan.dto.DailyPlanWarning;
 import com.focusflow.plan.dto.GeneratePlanRequest;
 import com.focusflow.security.CurrentUser;
 import com.focusflow.task.Task;
 import com.focusflow.task.TaskQueryService;
-import com.focusflow.task.TaskResponseMapper;
 import com.focusflow.task.TaskStatus;
-import com.focusflow.user.User;
 import com.focusflow.user.UserRepository;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -42,7 +32,8 @@ public class DailyPlanService {
 	private final UserRepository userRepository;
 	private final CurrentUser currentUser;
 	private final DailyPlanRepository dailyPlanRepository;
-	private final TaskResponseMapper taskResponseMapper;
+	private final DailyPlanPersister persister;
+	private final DailyPlanResponseMapper responseMapper;
 	private final DailyPlanRankingValidator rankingValidator;
 
 	public DailyPlanService(
@@ -51,14 +42,16 @@ public class DailyPlanService {
 			UserRepository userRepository,
 			CurrentUser currentUser,
 			DailyPlanRepository dailyPlanRepository,
-			TaskResponseMapper taskResponseMapper,
+			DailyPlanPersister persister,
+			DailyPlanResponseMapper responseMapper,
 			DailyPlanRankingValidator rankingValidator) {
 		this.aiClient = aiClient;
 		this.taskQueryService = taskQueryService;
 		this.userRepository = userRepository;
 		this.currentUser = currentUser;
 		this.dailyPlanRepository = dailyPlanRepository;
-		this.taskResponseMapper = taskResponseMapper;
+		this.persister = persister;
+		this.responseMapper = responseMapper;
 		this.rankingValidator = rankingValidator;
 	}
 
@@ -76,45 +69,8 @@ public class DailyPlanService {
 				activeTasks, planDate, request.availableMinutes(), aiResponse.items());
 		DailyPlanWarningSnapshot warning =
 				computeWarning(activeTasks, planDate, request.availableMinutes());
-		return persistPlan(
+		return persister.persistPlan(
 				ownerId, planDate, aiResponse.items(), request.availableMinutes(), warning);
-	}
-
-	@Transactional
-	DailyPlanResponse persistPlan(
-			Long ownerId,
-			LocalDate planDate,
-			List<AiPlanItem> aiItems,
-			int availableMinutes,
-			DailyPlanWarningSnapshot warning) {
-		User owner =
-				userRepository
-						.findById(ownerId)
-						.orElseThrow(() -> new NotFoundException("user not found"));
-		List<Long> selectedTaskIds = aiItems.stream().map(AiPlanItem::taskId).toList();
-		List<Task> reloadedTasks =
-				taskQueryService.findOwnedTasksByIds(ownerId, selectedTaskIds);
-		Map<Long, Task> taskById =
-				reloadedTasks.stream()
-						.collect(
-								Collectors.toMap(
-										task -> task.getId() != null ? task.getId() : 0L,
-										Function.identity(),
-										(first, second) -> first));
-		for (AiPlanItem aiItem : aiItems) {
-			if (!taskById.containsKey(aiItem.taskId())) {
-				throw new ConflictException("a selected task is no longer available");
-			}
-		}
-		DailyPlan plan =
-				buildPlan(
-						owner,
-						planDate,
-						aiItems,
-						taskById,
-						availableMinutes,
-						warning);
-		return toPlanResponse(dailyPlanRepository.save(plan));
 	}
 
 	public PageResponse<DailyPlanSummaryResponse> listForCurrentUser(int page, int size) {
@@ -144,11 +100,11 @@ public class DailyPlanService {
 		Long ownerId = currentUser.getCurrentUser().id();
 		return dailyPlanRepository
 				.findFirstByOwner_IdAndPlanDateOrderByCreatedAtDescIdDesc(ownerId, planDate)
-				.map(this::toPlanResponse);
+				.map(responseMapper::toResponse);
 	}
 
 	public DailyPlanResponse getForCurrentUser(Long planId) {
-		return toPlanResponse(loadPlanForCurrentUser(planId));
+		return responseMapper.toResponse(loadPlanForCurrentUser(planId));
 	}
 
 	@Transactional
@@ -163,29 +119,6 @@ public class DailyPlanService {
 				.orElseThrow(() -> new NotFoundException("daily plan not found"));
 	}
 
-	private DailyPlan buildPlan(
-			User owner,
-			LocalDate planDate,
-			List<AiPlanItem> aiItems,
-			Map<Long, Task> taskById,
-			int availableMinutes,
-			DailyPlanWarningSnapshot warning) {
-		DailyPlan plan = new DailyPlan();
-		plan.setOwner(owner);
-		plan.setPlanDate(planDate);
-		plan.setCreatedAt(Instant.now());
-		plan.setAvailableMinutes(availableMinutes);
-		plan.setWarning(warning);
-		for (AiPlanItem aiItem : aiItems) {
-			Task task = taskById.get(aiItem.taskId());
-			DailyPlanItem item = new DailyPlanItem();
-			item.setTask(task);
-			item.setPosition(aiItem.position());
-			plan.addItem(item);
-		}
-		return plan;
-	}
-
 	private DailyPlanSummaryResponse toSummaryResponse(DailyPlanSummaryProjection projection) {
 		return new DailyPlanSummaryResponse(
 				projection.getId(),
@@ -194,24 +127,6 @@ public class DailyPlanService {
 				projection.getItemCount() != null ? projection.getItemCount() : 0,
 				Boolean.TRUE.equals(projection.getHasWarning()),
 				projection.getAvailableMinutes());
-	}
-
-	private DailyPlanResponse toPlanResponse(DailyPlan plan) {
-		List<DailyPlanItemResponse> items =
-				plan.getItems().stream()
-						.map(
-								item ->
-										new DailyPlanItemResponse(
-												item.getPosition(),
-												taskResponseMapper.toResponse(item.getTask())))
-						.toList();
-		return new DailyPlanResponse(
-				plan.getId(),
-				plan.getPlanDate(),
-				plan.getCreatedAt(),
-				items,
-				plan.getAvailableMinutes(),
-				DailyPlanWarning.from(plan.getWarning()));
 	}
 
 	private DailyPlanWarningSnapshot computeWarning(
