@@ -5,6 +5,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/focusflow}
     username: ${SPRING_DATASOURCE_USERNAME:focusflow}
     password: ${SPRING_DATASOURCE_PASSWORD:focusflow}
+  flyway:
+    baseline-on-migrate: false
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
@@ -20,3 +22,30 @@ focusflow:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4.1-mini}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    connect-timeout: 2s
+    read-timeout: 30s
+    max-attempts: 2
+    retry-delay: 1s
+    max-retry-after: 5s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

@@ -13,10 +13,17 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlanDeleteButton } from '@/features/plans/PlanDeleteButton'
 import { useDeletePlan } from '@/features/plans/hooks'
-import type { DailyPlanResponse } from '@/types/api'
+import type { DailyPlanSummaryResponse } from '@/types/api'
 
 type PlanHistoryListProps = {
-  plans: DailyPlanResponse[]
+  plans: DailyPlanSummaryResponse[]
+  page: number
+  size: number
+  totalPages: number
+  totalElements: number
+  hasPrevious: boolean
+  hasNext: boolean
+  onPageChange: (page: number) => void
   isLoading: boolean
   isError: boolean
   onRetry?: () => void
@@ -61,13 +68,18 @@ function formatItemCount(count: number): string {
 
 export function PlanHistoryList({
   plans,
+  page,
+  totalPages,
+  hasPrevious,
+  hasNext,
+  onPageChange,
   isLoading,
   isError,
   onRetry,
 }: PlanHistoryListProps) {
   const { mutate: deletePlan, isPending: isDeleting } = useDeletePlan()
 
-  function handleDelete(plan: DailyPlanResponse) {
+  function handleDelete(plan: DailyPlanSummaryResponse) {
     deletePlan(plan.id, {
       onSuccess: () => {
         toast.success('Plan deleted')
@@ -98,32 +110,57 @@ export function PlanHistoryList({
   }
 
   return (
-    <ul className="flex flex-col gap-3">
-      {plans.map((plan) => (
-        <li
-          key={plan.id}
-          className="flex items-center gap-1 rounded-xl border border-border px-2 py-1"
-        >
-          <Link
-            to={`/plans/${plan.id}`}
-            className="flex flex-1 items-center justify-between rounded-lg px-2 py-2 transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+    <div className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-3">
+        {plans.map((plan) => (
+          <li
+            key={plan.id}
+            className="flex items-center gap-1 rounded-xl border border-border px-2 py-1"
           >
-            <span className="font-medium">{plan.planDate}</span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground">
-              {plan.warning != null && (
-                <Badge variant="secondary">Shortfall</Badge>
-              )}
-              {formatItemCount(plan.items.length)}
-            </span>
-          </Link>
-          <PlanDeleteButton
-            plan={plan}
-            variant="icon"
-            isDeleting={isDeleting}
-            onConfirm={() => handleDelete(plan)}
-          />
-        </li>
-      ))}
-    </ul>
+            <Link
+              to={`/plans/${plan.id}`}
+              className="flex flex-1 items-center justify-between rounded-lg px-2 py-2 transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <span className="font-medium">{plan.planDate}</span>
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                {plan.hasWarning && (
+                  <Badge variant="secondary">Shortfall</Badge>
+                )}
+                {formatItemCount(plan.itemCount)}
+              </span>
+            </Link>
+            <PlanDeleteButton
+              plan={plan}
+              variant="icon"
+              isDeleting={isDeleting}
+              onConfirm={() => handleDelete(plan)}
+            />
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={!hasPrevious}
+          onClick={() => onPageChange(page - 1)}
+        >
+          Previous
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          Page {page + 1} of {totalPages}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={!hasNext}
+          onClick={() => onPageChange(page + 1)}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
   )
 }

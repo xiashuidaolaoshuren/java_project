@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -22,6 +23,7 @@ public class GlobalExceptionHandler {
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	private static final String GENERIC_CLIENT_MESSAGE = "Unexpected error";
+	private static final String MDC_REQUEST_ID_KEY = "requestId";
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiErrorResponse> handleValidation(
@@ -38,7 +40,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.BAD_REQUEST.getReasonPhrase(),
 						"Validation failed",
 						request.getRequestURI(),
-						details);
+						details,
+						currentRequestId());
 
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
 	}
@@ -51,7 +54,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.BAD_REQUEST.value(),
 						HttpStatus.BAD_REQUEST.getReasonPhrase(),
 						ex.getMessage(),
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
 	}
 
@@ -62,7 +66,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.NOT_FOUND.value(),
 						HttpStatus.NOT_FOUND.getReasonPhrase(),
 						ex.getMessage(),
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
 	}
 
@@ -73,7 +78,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.CONFLICT.value(),
 						HttpStatus.CONFLICT.getReasonPhrase(),
 						ex.getMessage(),
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
 	}
 
@@ -85,7 +91,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.FORBIDDEN.value(),
 						HttpStatus.FORBIDDEN.getReasonPhrase(),
 						ex.getMessage(),
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
 	}
 
@@ -97,7 +104,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.UNAUTHORIZED.value(),
 						HttpStatus.UNAUTHORIZED.getReasonPhrase(),
 						"Invalid credentials",
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
 	}
 
@@ -115,7 +123,8 @@ public class GlobalExceptionHandler {
 						HttpStatus.BAD_GATEWAY.value(),
 						HttpStatus.BAD_GATEWAY.getReasonPhrase(),
 						safeMessage,
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 
 		return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
 	}
@@ -128,7 +137,12 @@ public class GlobalExceptionHandler {
 						HttpStatus.INTERNAL_SERVER_ERROR.value(),
 						HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
 						GENERIC_CLIENT_MESSAGE,
-						request.getRequestURI());
+						request.getRequestURI(),
+						currentRequestId());
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+	}
+
+	private static String currentRequestId() {
+		return MDC.get(MDC_REQUEST_ID_KEY);
 	}
 }

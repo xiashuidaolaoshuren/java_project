@@ -1,11 +1,15 @@
 package com.focusflow.plan;
 
+import com.focusflow.common.web.PageResponse;
 import com.focusflow.plan.dto.DailyPlanResponse;
+import com.focusflow.plan.dto.DailyPlanSummaryResponse;
 import com.focusflow.plan.dto.GeneratePlanRequest;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
-import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,8 +31,23 @@ public class DailyPlanController {
 	}
 
 	@GetMapping
-	public List<DailyPlanResponse> list(@RequestParam(required = false) LocalDate planDate) {
-		return dailyPlanService.listForCurrentUser(planDate);
+	public PageResponse<DailyPlanSummaryResponse> list(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		return dailyPlanService.listForCurrentUser(page, size);
+	}
+
+	@GetMapping("/latest")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Latest plan found"),
+		@ApiResponse(responseCode = "204", description = "No plan for the requested date")
+	})
+	public ResponseEntity<DailyPlanResponse> latest(
+			@RequestParam(required = false) LocalDate planDate) {
+		return dailyPlanService
+				.latestForCurrentUser(planDate)
+				.map(ResponseEntity::ok)
+				.orElseGet(() -> ResponseEntity.noContent().build());
 	}
 
 	@GetMapping("/{id}")

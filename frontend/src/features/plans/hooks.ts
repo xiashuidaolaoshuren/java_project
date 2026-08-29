@@ -4,7 +4,11 @@ import { deletePlan, generateDailyPlan, getPlanById, getTodayPlan, listPlans } f
 import type { GeneratePlanRequest } from '@/types/api'
 
 export const todayPlanQueryKey = ['plans', 'today'] as const
-export const plansQueryKey = ['plans', 'list'] as const
+export const plansListQueryPrefix = ['plans', 'list'] as const
+
+export function plansQueryKey(page: number, size: number) {
+  return [...plansListQueryPrefix, page, size] as const
+}
 
 export function planDetailQueryKey(id: number) {
   return ['plans', 'detail', id] as const
@@ -27,16 +31,17 @@ export function useTodayPlan() {
   }
 }
 
-export function usePlans() {
+export function usePlans(page: number, size: number) {
   const query = useQuery({
-    queryKey: plansQueryKey,
-    queryFn: listPlans,
+    queryKey: plansQueryKey(page, size),
+    queryFn: () => listPlans(page, size),
   })
 
   return {
     ...query,
-    plans: query.data ?? [],
-    isEmpty: !query.isPending && (query.data?.length ?? 0) === 0,
+    plans: query.data?.content ?? [],
+    page: query.data ?? null,
+    isEmpty: !query.isPending && (query.data?.content.length ?? 0) === 0,
   }
 }
 
@@ -62,7 +67,7 @@ export function useGeneratePlan() {
       queryClient.setQueryData(todayPlanQueryKey, plan)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: todayPlanQueryKey }),
-        queryClient.invalidateQueries({ queryKey: plansQueryKey }),
+        queryClient.invalidateQueries({ queryKey: plansListQueryPrefix }),
       ])
     },
   })
@@ -76,7 +81,7 @@ export function useDeletePlan() {
     onSuccess: async (_data, id) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: todayPlanQueryKey }),
-        queryClient.invalidateQueries({ queryKey: plansQueryKey }),
+        queryClient.invalidateQueries({ queryKey: plansListQueryPrefix }),
         queryClient.invalidateQueries({ queryKey: planDetailQueryKey(id) }),
       ])
     },

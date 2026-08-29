@@ -22,8 +22,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:postgresql'
@@ -32,6 +37,18 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.register('updateOpenApiSnapshot', Test) {
+	group = 'documentation'
+	description = 'Rewrite docs/openapi.yaml from the generated springdoc snapshot.'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	systemProperty 'updateOpenApiSnapshot', 'true'
+	filter {
+		includeTestsMatching '*OpenApiSnapshotTest'
+	}
 }
 
 def normalizeDotEnvValue(value) {
@@ -85,6 +102,15 @@ def loadRepoDotEnv() {
 }
 
 tasks.named('bootRun') {
+	environment loadRepoDotEnv()
+}
+
+tasks.register('adoptLegacySchema', JavaExec) {
+	group = 'application'
+	description =
+			'One-shot legacy schema adoption: preflight V1 structure, then Flyway baseline at version 1. Not a substitute for bootRun.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.focusflow.schema.LegacySchemaAdoptionCommand'
 	environment loadRepoDotEnv()
 }
 

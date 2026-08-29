@@ -8,6 +8,7 @@ export type ApiErrorResponse = {
   message: string
   path?: string
   details?: Record<string, string[]>
+  requestId?: string
 }
 
 export type LoginRequest = {
@@ -61,6 +62,25 @@ export type UpdateTaskRequest = {
 export type GeneratePlanRequest = {
   availableMinutes: number
   planDate?: string | null
+}
+
+/** Mirrors `com.focusflow.common.web.PageResponse` */
+export type PageResponse<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+/** Mirrors `com.focusflow.plan.dto.DailyPlanSummaryResponse` */
+export type DailyPlanSummaryResponse = {
+  id: number
+  planDate: string
+  createdAt: string
+  itemCount: number
+  hasWarning: boolean
+  availableMinutes: number | null
 }
 
 export type DailyPlanItemResponse = {

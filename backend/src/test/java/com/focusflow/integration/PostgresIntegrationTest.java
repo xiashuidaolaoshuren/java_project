@@ -9,12 +9,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.focusflow.plan.DailyPlan;
 import com.focusflow.plan.DailyPlanItem;
 import com.focusflow.plan.DailyPlanRepository;
+import com.focusflow.plan.DailyPlanSummaryProjection;
 import com.focusflow.plan.DailyPlanWarningSnapshot;
 import com.focusflow.task.Task;
 import com.focusflow.task.TaskPriority;
 import com.focusflow.task.TaskRepository;
 import com.focusflow.task.TaskStatus;
 import com.focusflow.testsupport.DailyPlanTestBuilder;
+import com.focusflow.testsupport.PostgresTestcontainerConfig;
 import com.focusflow.testsupport.TaskTestBuilder;
 import com.focusflow.testsupport.UserTestBuilder;
 import com.focusflow.user.User;
@@ -22,46 +24,19 @@ import com.focusflow.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Testcontainers
+@Import(PostgresTestcontainerConfig.class)
 class PostgresIntegrationTest {
-
-	static {
-		if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
-			System.setProperty(
-					"docker.client.strategy",
-					"org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy");
-		}
-	}
-
-	@Container
-	static final PostgreSQLContainer<?> postgres =
-			new PostgreSQLContainer<>("postgres:16-alpine")
-					.withDatabaseName("focusflow")
-					.withUsername("focusflow")
-					.withPassword("focusflow");
-
-	@DynamicPropertySource
-	static void registerDatasourceProperties(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", postgres::getJdbcUrl);
-		registry.add("spring.datasource.username", postgres::getUsername);
-		registry.add("spring.datasource.password", postgres::getPassword);
-		registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
-	}
 
 	@Autowired UserRepository userRepository;
 
@@ -234,18 +209,25 @@ class PostgresIntegrationTest {
 								.build());
 		dailyPlanRepository.flush();
 
-		assertThat(dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(owner.getId(), planDate))
-				.extracting(DailyPlan::getId)
+		assertThat(
+						dailyPlanRepository
+								.findSummariesByOwner(owner.getId(), PageRequest.of(0, 20))
+								.getContent())
+				.extracting(DailyPlanSummaryProjection::getId)
 				.containsExactly(savedLater.getId(), savedEarlier.getId());
+
+		assertThat(
+						dailyPlanRepository.findFirstByOwner_IdAndPlanDateOrderByCreatedAtDescIdDesc(
+								owner.getId(), planDate))
+				.isPresent()
+				.get()
+				.extracting(DailyPlan::getId)
+				.isEqualTo(savedLater.getId());
 
 		assertThat(dailyPlanRepository.findByOwner_IdAndId(owner.getId(), savedEarlier.getId()))
 				.isPresent()
 				.get()
 				.satisfies(p -> assertThat(p.getPlanDate()).isEqualTo(planDate));
-
-		assertThat(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId()))
-				.extracting(DailyPlan::getId)
-				.startsWith(savedLater.getId(), savedEarlier.getId());
 	}
 
 	@Test
@@ -313,7 +295,7 @@ class PostgresIntegrationTest {
 	}
 
 	@Test
-	void listDailyPlans_initializesItemsAndNestedTasks() {
+	void listDailyPlans_returnsSummariesWithoutLoadingItems() {
 		String suffix = UUID.randomUUID().toString().substring(0, 8);
 		User owner =
 				savedUser(
@@ -350,32 +332,32 @@ class PostgresIntegrationTest {
 								.addItem(savedFirst, 1));
 		dailyPlanRepository.flush();
 
-		List<DailyPlan> allPlans =
-				dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId());
-		assertThat(allPlans).hasSize(1).singleElement().satisfies(
-				p -> {
-					assertThat(p.getId()).isEqualTo(plan.getId());
-					assertThat(p.getItems())
-							.extracting(DailyPlanItem::getPosition)
-							.containsExactly(0, 1);
-					assertThat(p.getItems())
-							.extracting(i -> i.getTask().getTitle())
-							.containsExactly("Second task", "First task");
-				});
+		List<DailyPlanSummaryProjection> summaries =
+				dailyPlanRepository
+						.findSummariesByOwner(owner.getId(), PageRequest.of(0, 20))
+						.getContent();
+		assertThat(summaries)
+				.hasSize(1)
+				.singleElement()
+				.satisfies(
+						summary -> {
+							assertThat(summary.getId()).isEqualTo(plan.getId());
+							assertThat(summary.getItemCount()).isEqualTo(2);
+							assertThat(summary.getHasWarning()).isFalse();
+						});
 
-		List<DailyPlan> plansByDate =
-				dailyPlanRepository.findByOwner_IdAndPlanDateOrderByCreatedAtDesc(
-						owner.getId(), planDate);
-		assertThat(plansByDate).hasSize(1).singleElement().satisfies(
-				p -> {
-					assertThat(p.getId()).isEqualTo(plan.getId());
-					assertThat(p.getItems())
-							.extracting(DailyPlanItem::getPosition)
-							.containsExactly(0, 1);
-					assertThat(p.getItems())
-							.extracting(i -> i.getTask().getTitle())
-							.containsExactly("Second task", "First task");
-				});
+		assertThat(dailyPlanRepository.findByOwner_IdAndId(owner.getId(), plan.getId()))
+				.isPresent()
+				.get()
+				.satisfies(
+						p -> {
+							assertThat(p.getItems())
+									.extracting(DailyPlanItem::getPosition)
+									.containsExactly(0, 1);
+							assertThat(p.getItems())
+									.extracting(i -> i.getTask().getTitle())
+									.containsExactly("Second task", "First task");
+						});
 	}
 
 	@Test
@@ -420,7 +402,10 @@ class PostgresIntegrationTest {
 		dailyPlanRepository.flush();
 
 		assertThat(dailyPlanRepository.findByOwner_IdAndId(owner.getId(), planId)).isEmpty();
-		assertThat(dailyPlanRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId()))
+		assertThat(
+						dailyPlanRepository
+								.findSummariesByOwner(owner.getId(), PageRequest.of(0, 20))
+								.getContent())
 				.isEmpty();
 		assertThat(taskRepository.findByOwner_IdOrderByDueDateAsc(owner.getId()))
 				.extracting(Task::getId)

@@ -4,6 +4,8 @@ import com.focusflow.ai.AiPlanItem;
 import com.focusflow.ai.AiProviderException;
 import com.focusflow.task.Task;
 import com.focusflow.task.TaskStatus;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +16,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class DailyPlanRankingValidator {
+
+	private static final String REJECTION_COUNTER_NAME = "focusflow.ranking.rejections";
+
+	private final MeterRegistry meterRegistry;
+
+	public DailyPlanRankingValidator(MeterRegistry meterRegistry) {
+		this.meterRegistry = meterRegistry;
+	}
 
 	public void validate(
 			List<Task> candidates,
@@ -32,12 +42,15 @@ public class DailyPlanRankingValidator {
 		int highestBlockSeen = 0;
 		for (AiPlanItem aiItem : aiItems) {
 			if (!candidateById.containsKey(aiItem.taskId())) {
-				throw new AiProviderException(
+				reject(
+						RankingRejectionReason.UNKNOWN_TASK,
 						"invalid task id in AI response: " + aiItem.taskId());
 			}
 			int block = blockOf.get(aiItem.taskId());
 			if (block < highestBlockSeen) {
-				throw new AiProviderException("block order violated in AI response");
+				reject(
+						RankingRejectionReason.BLOCK_ORDER,
+						"block order violated in AI response");
 			}
 			highestBlockSeen = Math.max(highestBlockSeen, block);
 			seenTaskIds.add(aiItem.taskId());
@@ -45,11 +58,13 @@ public class DailyPlanRankingValidator {
 
 		for (Map.Entry<Long, Integer> entry : blockOf.entrySet()) {
 			if (entry.getValue() == 1 && !seenTaskIds.contains(entry.getKey())) {
-				throw new AiProviderException(
+				reject(
+						RankingRejectionReason.MISSING_BLOCK_1,
 						"missing must-continue task in AI response: " + entry.getKey());
 			}
 			if (entry.getValue() == 2 && !seenTaskIds.contains(entry.getKey())) {
-				throw new AiProviderException(
+				reject(
+						RankingRejectionReason.MISSING_BLOCK_2,
 						"missing due-or-overdue task in AI response: " + entry.getKey());
 			}
 		}
@@ -70,9 +85,18 @@ public class DailyPlanRankingValidator {
 			}
 		}
 		if (optionalMinutes > leftover) {
-			throw new AiProviderException(
+			reject(
+					RankingRejectionReason.OPTIONAL_OVERFLOW,
 					"optional work exceeds leftover minutes in AI response");
 		}
+	}
+
+	private void reject(RankingRejectionReason reason, String message) {
+		Counter.builder(REJECTION_COUNTER_NAME)
+				.tag("reason", reason.name())
+				.register(meterRegistry)
+				.increment();
+		throw new AiProviderException(message, reason);
 	}
 
 	private int knownEstimate(Task task) {

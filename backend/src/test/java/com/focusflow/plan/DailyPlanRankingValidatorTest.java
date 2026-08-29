@@ -1,5 +1,6 @@
 package com.focusflow.plan;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -8,6 +9,8 @@ import com.focusflow.ai.AiProviderException;
 import com.focusflow.task.Task;
 import com.focusflow.task.TaskPriority;
 import com.focusflow.task.TaskStatus;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -15,11 +18,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class DailyPlanRankingValidatorTest {
 
-	private final DailyPlanRankingValidator validator = new DailyPlanRankingValidator();
+	private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+	private final DailyPlanRankingValidator validator =
+			new DailyPlanRankingValidator(meterRegistry);
 
 	@Test
 	void validator_isConstructible() {
-		DailyPlanRankingValidator validator = new DailyPlanRankingValidator();
+		DailyPlanRankingValidator validator = new DailyPlanRankingValidator(meterRegistry);
 		assertNotNull(validator);
 	}
 
@@ -37,8 +42,10 @@ class DailyPlanRankingValidatorTest {
 		assertThatThrownBy(
 						() -> validator.validate(List.of(candidate), planDate, 120, aiItems))
 				.isInstanceOf(AiProviderException.class)
-				.hasMessageContaining("invalid task id")
-				.hasMessageContaining("999");
+				.extracting(ex -> ((AiProviderException) ex).getReason())
+				.isEqualTo(RankingRejectionReason.UNKNOWN_TASK);
+
+		assertRejectionCounted(RankingRejectionReason.UNKNOWN_TASK);
 	}
 
 	@Test
@@ -50,7 +57,10 @@ class DailyPlanRankingValidatorTest {
 								validator.validate(
 										List.of(candidate), LocalDate.of(2026, 6, 1), 120, List.of()))
 				.isInstanceOf(AiProviderException.class)
-				.hasMessageContaining("missing must-continue");
+				.extracting(ex -> ((AiProviderException) ex).getReason())
+				.isEqualTo(RankingRejectionReason.MISSING_BLOCK_1);
+
+		assertRejectionCounted(RankingRejectionReason.MISSING_BLOCK_1);
 	}
 
 	@Test
@@ -61,7 +71,10 @@ class DailyPlanRankingValidatorTest {
 		assertThatThrownBy(
 						() -> validator.validate(List.of(candidate), planDate, 120, List.of()))
 				.isInstanceOf(AiProviderException.class)
-				.hasMessageContaining("missing due-or-overdue");
+				.extracting(ex -> ((AiProviderException) ex).getReason())
+				.isEqualTo(RankingRejectionReason.MISSING_BLOCK_2);
+
+		assertRejectionCounted(RankingRejectionReason.MISSING_BLOCK_2);
 	}
 
 	@Test
@@ -78,7 +91,10 @@ class DailyPlanRankingValidatorTest {
 								validator.validate(
 										List.of(block1, block2, block3), planDate, 120, aiItems))
 				.isInstanceOf(AiProviderException.class)
-				.hasMessageContaining("block order");
+				.extracting(ex -> ((AiProviderException) ex).getReason())
+				.isEqualTo(RankingRejectionReason.BLOCK_ORDER);
+
+		assertRejectionCounted(RankingRejectionReason.BLOCK_ORDER);
 	}
 
 	@Test
@@ -95,7 +111,10 @@ class DailyPlanRankingValidatorTest {
 								validator.validate(
 										List.of(block1, block2, block3), planDate, 50, aiItems))
 				.isInstanceOf(AiProviderException.class)
-				.hasMessageContaining("optional work exceeds leftover");
+				.extracting(ex -> ((AiProviderException) ex).getReason())
+				.isEqualTo(RankingRejectionReason.OPTIONAL_OVERFLOW);
+
+		assertRejectionCounted(RankingRejectionReason.OPTIONAL_OVERFLOW);
 	}
 
 	@Test
@@ -107,6 +126,16 @@ class DailyPlanRankingValidatorTest {
 		List<AiPlanItem> aiItems = List.of(new AiPlanItem(2L, 1), new AiPlanItem(1L, 2));
 
 		validator.validate(List.of(high, low), LocalDate.of(2026, 6, 1), 120, aiItems);
+	}
+
+	private void assertRejectionCounted(RankingRejectionReason reason) {
+		Counter counter =
+				meterRegistry
+						.find("focusflow.ranking.rejections")
+						.tag("reason", reason.name())
+						.counter();
+		assertThat(counter).isNotNull();
+		assertThat(counter.count()).isEqualTo(1.0);
 	}
 
 	private Task task(Long id, TaskStatus status, LocalDate dueDate, Integer estimatedMinutes) {

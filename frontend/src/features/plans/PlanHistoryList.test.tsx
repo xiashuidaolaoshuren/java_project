@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PlanHistoryList } from '@/features/plans/PlanHistoryList'
-import type { DailyPlanResponse } from '@/types/api'
+import type { DailyPlanSummaryResponse } from '@/types/api'
 
 vi.mock('@/features/plans/hooks', () => ({
   useDeletePlan: vi.fn(),
@@ -15,41 +15,22 @@ import { useDeletePlan } from '@/features/plans/hooks'
 
 const mockedUseDeletePlan = vi.mocked(useDeletePlan)
 
-const samplePlans: DailyPlanResponse[] = [
+const samplePlans: DailyPlanSummaryResponse[] = [
   {
     id: 1,
     planDate: '2026-06-14',
     createdAt: '2026-06-14T09:00:00Z',
+    itemCount: 1,
+    hasWarning: true,
     availableMinutes: 30,
-    warning: {
-      minimumAvailableMinutes: 60,
-      estimatedTasks: [
-        { taskId: 10, title: 'Write tests', estimatedMinutes: 60 },
-      ],
-      unestimatedTasks: [],
-    },
-    items: [
-      {
-        position: 1,
-        task: {
-          id: 10,
-          title: 'Write tests',
-          description: null,
-          priority: 'HIGH',
-          status: 'OPEN',
-          dueDate: '2026-06-14',
-          estimatedMinutes: 45,
-        },
-      },
-    ],
   },
   {
     id: 2,
     planDate: '2026-06-15',
     createdAt: '2026-06-15T09:00:00Z',
+    itemCount: 0,
+    hasWarning: false,
     availableMinutes: null,
-    warning: null,
-    items: [],
   },
 ]
 
@@ -58,6 +39,13 @@ function renderPlanHistoryList(
 ) {
   const defaultProps = {
     plans: samplePlans,
+    page: 0,
+    size: 20,
+    totalPages: 3,
+    totalElements: 42,
+    hasPrevious: false,
+    hasNext: true,
+    onPageChange: vi.fn(),
     isLoading: false,
     isError: false,
     onRetry: vi.fn(),
@@ -83,6 +71,7 @@ describe('PlanHistoryList', () => {
       isPending: false,
     } as unknown as ReturnType<typeof useDeletePlan>)
   })
+
   it('renders a link per plan showing plan date and item count', () => {
     renderPlanHistoryList()
 
@@ -96,7 +85,7 @@ describe('PlanHistoryList', () => {
     expect(links[1]).toHaveTextContent('0 blocks')
   })
 
-  it('shows a Shortfall indicator only for plans with a warning', () => {
+  it('shows a Shortfall indicator only for plans with hasWarning', () => {
     renderPlanHistoryList()
 
     const links = screen.getAllByRole('link')
@@ -124,6 +113,36 @@ describe('PlanHistoryList', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
     expect(onRetry).toHaveBeenCalled()
+  })
+
+  it('disables Previous when hasPrevious is false and Next when hasNext is false', () => {
+    renderPlanHistoryList({ hasPrevious: false, hasNext: false, page: 2, totalPages: 3 })
+
+    expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
+  })
+
+  it('calls onPageChange when pagination buttons are clicked', () => {
+    const onPageChange = vi.fn()
+    renderPlanHistoryList({
+      hasPrevious: true,
+      hasNext: true,
+      page: 1,
+      totalPages: 3,
+      onPageChange,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /previous/i }))
+    expect(onPageChange).toHaveBeenCalledWith(0)
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    expect(onPageChange).toHaveBeenCalledWith(2)
+  })
+
+  it('shows current page position', () => {
+    renderPlanHistoryList({ page: 1, totalPages: 3 })
+
+    expect(screen.getByText(/page 2 of 3/i)).toBeInTheDocument()
   })
 
   it('calls delete mutation only after confirmation', async () => {

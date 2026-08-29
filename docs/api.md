@@ -1,6 +1,6 @@
 # FocusFlow AI — API Reference
 
-Back to [README](../README.md). Machine-readable contract: [openapi.yaml](openapi.yaml).
+Back to [README](../README.md). Machine-readable contract: [openapi.yaml](openapi.yaml) (generated from code; see README for the update command).
 
 ## Base URLs
 
@@ -36,6 +36,23 @@ State-changing requests (`POST`, `PUT`, `DELETE`) require:
 This applies to public register/login as well as authenticated mutations.
 
 **Seed the CSRF token:** send `GET /api/auth/me` (or any request that hits the CSRF filter). When logged out, **401** is expected; the response still sets `XSRF-TOKEN`.
+
+### Request correlation
+
+Every response includes `X-Request-Id`. Clients may send the same header on the request; if absent or invalid, the server generates a UUID. The value appears in server logs and, for application errors that use `ApiErrorResponse`, in the JSON `requestId` field.
+
+Unauthenticated **401** and CSRF **403** responses include the header but keep their existing minimal bodies (no JSON redesign in 1.1.0).
+
+### Health probes (orchestration)
+
+| Endpoint | Auth | Notes |
+|----------|------|-------|
+| `GET /actuator/health/liveness` | Public | Process up; no component details |
+| `GET /actuator/health/readiness` | Public | Includes PostgreSQL; no component details |
+| `GET /actuator/health` | Session | Aggregate health (details hidden) |
+| `GET /actuator/metrics` | Session | Micrometer metrics |
+
+Swagger UI and `/v3/api-docs` are available only under the Spring **`dev`** profile (see README).
 
 ### Unauthenticated and CSRF failures
 
@@ -77,10 +94,34 @@ Most application errors return:
 | `message` | string | Human-readable message |
 | `path` | string | Request path |
 | `details` | object → string[] | Optional; field validation errors only |
+| `requestId` | string | Optional; correlation id when present in MDC |
 
 Omitted null fields are excluded from JSON (`@JsonInclude(NON_NULL)`).
 
 ## Shared schemas
+
+### `PageResponse<T>`
+
+| Field | Type | Required |
+|-------|------|----------|
+| `content` | array | yes |
+| `page` | integer | yes | Zero-based page index |
+| `size` | integer | yes | Page size |
+| `totalElements` | integer | yes | Total matching rows |
+| `totalPages` | integer | yes | Total pages |
+
+### `DailyPlanSummaryResponse`
+
+List/history rows only — no nested tasks or items.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `id` | integer | yes | |
+| `planDate` | string (date) | yes | `YYYY-MM-DD` |
+| `createdAt` | string (instant) | yes | ISO-8601 |
+| `itemCount` | integer | yes | Number of ranked items |
+| `hasWarning` | boolean | yes | Shortfall snapshot was present at generate time |
+| `availableMinutes` | integer \| null | yes | `null` on plans saved before 1.0.2 |
 
 ### Enums
 
@@ -139,7 +180,7 @@ Omitted null fields are excluded from JSON (`@JsonInclude(NON_NULL)`).
 | `availableMinutes` | integer \| null | yes | `null` on plans saved before 1.0.2 |
 | `warning` | `DailyPlanWarning` \| null | yes | Shortfall snapshot from generate time; `null` when no shortfall or pre-1.0.2 row |
 
-List and get return the same extended shape after refresh.
+List, get-by-id, generate, and latest return the same extended detail shape after refresh.
 
 ---
 
@@ -405,7 +446,7 @@ Generate a plan from plannable tasks (`OPEN` and `IN_PROGRESS`). Calls the AI pr
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
 | `availableMinutes` | integer | yes | Min 1 |
-| `planDate` | string (date) | no | `YYYY-MM-DD`; defaults to today |
+| `planDate` | string (date) | yes | `YYYY-MM-DD`; explicit calendar date (no server-default “today”) |
 
 **Example**
 
@@ -421,7 +462,7 @@ Generate a plan from plannable tasks (`OPEN` and `IN_PROGRESS`). Calls the AI pr
 | Status | Body |
 |--------|------|
 | **201** | `DailyPlanResponse` |
-| **400** | `message`: `no plannable tasks available for planning` or validation failed |
+| **400** | `message`: `no plannable tasks available for planning`, missing/invalid `planDate`, or validation failed |
 | **401** | Not authenticated |
 | **502** | `ApiErrorResponse` — AI provider failure (`message` from provider or `AI provider request failed`) |
 
@@ -457,19 +498,67 @@ On **502**, nothing is saved.
 
 ### `GET /api/daily-plans`
 
-List saved plans for the current user.
+Paged list of saved plan **summaries** for the current user (newest first by `createdAt`, then `id`).
 
 **Query parameters**
 
 | Name | Type | Required | Notes |
 |------|------|----------|-------|
-| `planDate` | string (date) | no | Filter to `YYYY-MM-DD` |
+| `page` | integer | no | Default `0`, minimum `0` |
+| `size` | integer | no | Default `20`, minimum `1`, maximum `100` |
 
 **Responses**
 
 | Status | Body |
 |--------|------|
-| **200** | `DailyPlanResponse[]` |
+| **200** | `PageResponse<DailyPlanSummaryResponse>` |
+| **401** | Not authenticated |
+
+**Example (truncated)**
+
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "planDate": "2026-06-01",
+      "createdAt": "2026-06-01T10:00:00Z",
+      "itemCount": 3,
+      "hasWarning": false,
+      "availableMinutes": 120
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+---
+
+### `GET /api/daily-plans/latest`
+
+Latest saved plan **detail** for a calendar date (highest `createdAt`, then highest `id` when several plans share the same date).
+
+| | |
+|---|---|
+| **Auth** | Session |
+| **CSRF** | Not required |
+
+**Query parameters**
+
+| Name | Type | Required | Notes |
+|------|------|----------|-------|
+| `planDate` | string (date) | yes | `YYYY-MM-DD` |
+
+**Responses**
+
+| Status | Body |
+|--------|------|
+| **200** | `DailyPlanResponse` |
+| **204** | Empty — no plan for that date (ordinary empty state, not an error) |
+| **400** | Missing or invalid `planDate` |
 | **401** | Not authenticated |
 
 ---
