@@ -32,7 +32,7 @@ The wall-clock span of one planning day, from a start time to an end time.
 _Avoid_: Available minutes, day length, available focus minutes
 
 **Focus cadence**:
-A maximum continuous focus stretch together with a cadence-break length.
+An optional target focus stretch together with a cadence-break length. It shapes work sessions without creating fragments shorter than the Minimum session.
 
 **Minimum session**:
 The shortest work block the scheduler emits as its own session, unless a leftover fragment is all that remains.
@@ -51,7 +51,7 @@ The last slice of the Work window reserved as contingency and shown as its own b
 An optional wall-clock span shaded on the timeline. It does not change placement.
 
 **Wall-clock time**:
-A time of day without a timezone. Nine o'clock means 09:00 on the Planning date.
+A minute-aligned time of day without a timezone. Nine o'clock means 09:00 on the Planning date.
 _Avoid_: Instant, UTC, local now (at an API boundary)
 
 ## Plans
@@ -65,10 +65,10 @@ The calendar date assigned to a Daily plan. Planning operations name it explicit
 _Avoid_: Server date, today (at an API boundary)
 
 **Plan detail**:
-The complete view of one Daily plan, including its Timed blocks.
+The complete view of one Daily plan, including Scheduled blocks and Unplaced work.
 
 **Plan summary**:
-The reduced view of a Daily plan used in plan history. It describes the plan without including its Timed blocks.
+The reduced view of a Daily plan used in plan history. It describes the plan without including its entries.
 
 **The plan for a date**:
 The one Daily plan for an owner and Planning date. Generating again replaces it.
@@ -78,25 +78,34 @@ _Avoid_: Latest plan for a date
 The Plannable task state, effective Scheduling preferences, and Commitments used to make decisions for one plan-generation attempt. Later edits do not retroactively change those decisions.
 
 **Schedule snapshot**:
-The Work window and Peak window copied onto a Daily plan at generate time so later preference edits do not rewrite history.
+The Work window, Peak window, constraints, and source-task data copied onto a Daily plan at generate time so later edits do not rewrite history.
 
-**Timed block**:
-One item in a Daily plan: placed work, a cadence break, a Fixed break, a Commitment, the Trailing buffer, or Unplaced work.
+**Plan entry**:
+One child of a Daily plan: either a Scheduled block or Unplaced work.
+
+**Scheduled block**:
+A minute-aligned clock interval containing work, a cadence break, a Fixed break, a Commitment, or the Trailing buffer.
 
 **Work session**:
-A placed Timed block of work for one Task. Several sessions of the same Task may exist in one Daily plan.
+A Scheduled block of work for one Task snapshot. Several sessions of the same source Task may exist in one Daily plan.
 
 **Unplaced work**:
-A Timed block that is in the Daily plan but not on the clock, because the Task has no estimate or because the day ran out of time.
+A Plan entry that is not on the clock, because its source Task has no estimate or the day ran out of time.
 
-**Day capacity**:
-Minutes remaining in the Work window after Fixed breaks, overlapping Commitments, and the Trailing buffer are removed. Cadence breaks consume this during placement.
+**Free minutes**:
+Minutes remaining in the Work window after Fixed breaks, overlapping Commitments, and the Trailing buffer are removed. Cadence breaks consume some of this time.
+
+**Scheduled work minutes**:
+The sum of durations of Work sessions after cadence and unavailable intervals are applied.
 
 **Required minutes**:
 The sum of known estimates on Must-include work at generate time.
 
 **Shortfall warning**:
 A notice that some Must-include work is Unplaced work.
+
+**Task snapshot**:
+Immutable source-task identity and display fields copied into a Plan entry at generation, with an optional reference to the live Task.
 
 ## Preferences
 
