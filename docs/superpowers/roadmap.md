@@ -1,6 +1,6 @@
 # FocusFlow Roadmap — Enterprise-Grade Planning Iteration
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 This tracks a multi-milestone iteration aimed at making FocusFlow's planning features closer to enterprise-grade: real scheduling on a clock, rest-aware planning, work that spans days, and the platform hardening needed to carry it. It exists so the milestones after the one currently in progress do not get lost between brainstorming sessions.
 
@@ -11,7 +11,7 @@ This tracks a multi-milestone iteration aimed at making FocusFlow's planning fea
 | Milestone | Status | Spec |
 |---|---|---|
 | 1.1.0 — Platform hardening | Implemented and merged. | [`2026-08-26-focusflow-1.1.0-platform-hardening-design.md`](specs/2026-08-26-focusflow-1.1.0-platform-hardening-design.md) |
-| 1.2.0 — The scheduled day | Spec reviewed; awaiting implementation planning. | [`2026-09-07-focusflow-1.2.0-scheduled-day-design.md`](specs/2026-09-07-focusflow-1.2.0-scheduled-day-design.md) |
+| 1.2.0 — The scheduled day | Spec reviewed twice; implementation plan pending. | [`2026-09-07-focusflow-1.2.0-scheduled-day-design.md`](specs/2026-09-07-focusflow-1.2.0-scheduled-day-design.md) |
 | 1.3.0 — Progress and carry-over | Not started. Scope outlined below. | — |
 | 1.4.0 — Dependencies and the multi-day horizon | Not started. Scope outlined below. | — |
 
@@ -19,19 +19,19 @@ Deferred items with no milestone assigned are listed at the end.
 
 ## Cross-milestone decisions already settled
 
-These constrain later milestones and should be treated as settled unless something learned while building changes them. 1.2.0 ADRs are `docs/adr/0002`–`0022`.
+These constrain later milestones and should be treated as settled unless something learned while building changes them. 1.2.0 ADRs are `docs/adr/0002`–`0025`.
 
 - **Time model:** wall-clock `LocalTime` / `LocalDate`. No timezone preference. The client supplies the planning date now and can supply "now" in 1.3.0. ([0009](../adr/0009-wall-clock-times.md))
 - **Planning horizon:** this iteration plans one day at a time with clock times, breaks, and (in 1.3.0) carry-over. A multi-day Gantt is 1.4.0, built on the single-day scheduler, not a replacement for it.
-- **Who schedules:** the AI returns one ordered id array for at most 100 plannable tasks. A two-stage Java scheduler takes that ordering plus the work window, break rules, commitments, buffer, and remaining effort, places work until time is exhausted, and validates postconditions. `DailyPlanRankingValidator` polices ordering only. ([0006](../adr/0006-ai-total-ordering.md), [0015](../adr/0015-two-stage-scheduler.md), [0022](../adr/0022-bound-ai-ranking-requests.md))
-- **Plan identity:** at most one Daily plan per owner and planning date. Generate uses owner-serialized compare-and-replace rather than unconditional replacement. The plan read route is `/by-date`. ([0002](../adr/0002-one-plan-per-date.md))
+- **Who schedules:** the AI returns one ordered id array for at most 100 plannable tasks. A two-stage Java scheduler takes that ordering plus the work window, break rules, commitments, buffer, and remaining effort, places work until time is exhausted, and validates postconditions. Ranked candidates become one Daily-plan-task snapshot each; scheduled work blocks reference it. `DailyPlanRankingValidator` polices ordering only. ([0006](../adr/0006-ai-total-ordering.md), [0015](../adr/0015-two-stage-scheduler.md), [0018](../adr/0018-snapshot-task-data-in-plans.md), [0022](../adr/0022-bound-ai-ranking-requests.md))
+- **Plan identity:** at most one Daily plan per owner and planning date. Generate uses owner-serialized compare-and-replace rather than unconditional replacement, producing a new plan id on each regeneration. The plan read route is `/by-date`. ([0002](../adr/0002-one-plan-per-date.md), [0025](../adr/0025-owner-scheduling-lock.md))
 - **Progress tracking:** still 1.3.0. Actuals will be recorded against plan blocks (done / partly done / skipped, with optional actual minutes). Remaining effort for carry-over is derived from block actuals. 1.3.0 must not silently replace a plan that has actuals.
-- **Rest model:** optional focus cadence (target stretch plus break length, with a minimum session, look-ahead tail absorb, and early breaks) combined with fixed-time breaks and commitments as unavailable time, plus a trailing buffer. Commitments do not count as rest. ([0005](../adr/0005-cadence-session-splitting.md), [0008](../adr/0008-trailing-buffer.md), [0010](../adr/0010-breaks-and-commitments-separate.md))
+- **Rest model:** optional focus cadence (target stretch plus break length, with a minimum session that remains active when cadence is disabled, look-ahead tail absorb, and early breaks) combined with fixed-time breaks and commitments as unavailable time, plus a trailing buffer. Buffer reserves the latest free minutes and records requested versus realized duration. Commitments do not count as rest. ([0005](../adr/0005-cadence-session-splitting.md), [0008](../adr/0008-trailing-buffer.md), [0010](../adr/0010-breaks-and-commitments-separate.md), [0023](../adr/0023-minimum-session-without-cadence.md), [0024](../adr/0024-realized-buffer-time.md))
 - **Peak hours:** stored and shaded; they do not affect placement. ([0007](../adr/0007-peak-hours-display-only.md))
 - **Unestimated work:** stays in the plan as unplaced, never given a fabricated duration. ([0004](../adr/0004-unplaced-unestimated-work.md))
 - **Overflow:** the work window is a hard boundary; must-include remainder is unplaced `OUT_OF_TIME`. ([0013](../adr/0013-window-is-a-hard-boundary.md))
 - **Planning date:** still explicit at the API. 1.2.0 closed the "revisit after timezone preferences" thread by deciding there are no timezone preferences.
-- **Historical work:** plan entries snapshot source-task identity and display fields while retaining an optional live reference. Task edits and deletion do not rewrite history. ([0018](../adr/0018-snapshot-task-data-in-plans.md))
+- **Historical work:** Daily plan tasks snapshot source-task identity, title, priority, status, due date, and estimate while retaining an optional live reference; descriptions are not stored. Task edits and deletion do not rewrite history. ([0018](../adr/0018-snapshot-task-data-in-plans.md))
 
 ## 1.2.0 — The scheduled day
 

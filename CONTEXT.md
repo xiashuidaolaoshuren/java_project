@@ -35,7 +35,7 @@ _Avoid_: Available minutes, day length, available focus minutes
 An optional target focus stretch together with a cadence-break length. It shapes work sessions without creating fragments shorter than the Minimum session.
 
 **Minimum session**:
-The shortest work block the scheduler emits as its own session, unless a leftover fragment is all that remains.
+The shortest work block the scheduler emits as its own session, unless a leftover fragment is all that remains. It applies whether Focus cadence is enabled or disabled.
 
 **Fixed break**:
 A labelled unavailable window that repeats every planning day, stored with Scheduling preferences.
@@ -45,7 +45,7 @@ _Avoid_: Lunch (when meaning the general concept)
 A labelled unavailable window on one calendar date. It is not a Task.
 
 **Trailing buffer**:
-The last slice of the Work window reserved as contingency and shown as its own block.
+The latest free minutes in the Work window reserved as contingency and shown as one or more blocks. Its realized duration may be lower than its requested duration.
 
 **Peak window**:
 An optional wall-clock span shaded on the timeline. It does not change placement.
@@ -80,17 +80,20 @@ The Plannable task state, effective Scheduling preferences, and Commitments used
 **Schedule snapshot**:
 The Work window, Peak window, constraints, and source-task data copied onto a Daily plan at generate time so later edits do not rewrite history.
 
-**Plan entry**:
-One child of a Daily plan: either a Scheduled block or Unplaced work.
+**Daily plan task**:
+One ranked snapshot of a Plannable task in a Daily plan. It owns the task snapshot and any Unplaced work.
+
+**Daily plan block**:
+One minute-aligned clock interval inside a Daily plan. Work blocks reference a Daily plan task; other kinds do not.
 
 **Scheduled block**:
-A minute-aligned clock interval containing work, a cadence break, a Fixed break, a Commitment, or the Trailing buffer.
+The API view of a placed Daily plan block.
 
 **Work session**:
 A Scheduled block of work for one Task snapshot. Several sessions of the same source Task may exist in one Daily plan.
 
 **Unplaced work**:
-A Plan entry that is not on the clock, because its source Task has no estimate or the day ran out of time.
+The API view of a Daily plan task that is not on the clock, or has a remaining unplaced portion, because its source Task has no estimate or the day ran out of time.
 
 **Free minutes**:
 Minutes remaining in the Work window after Fixed breaks, overlapping Commitments, and the Trailing buffer are removed. Cadence breaks consume some of this time.
@@ -105,7 +108,7 @@ The sum of known estimates on Must-include work at generate time.
 A notice that some Must-include work is Unplaced work.
 
 **Task snapshot**:
-Immutable source-task identity and display fields copied into a Plan entry at generation, with an optional reference to the live Task.
+Immutable source-task identity, title, priority, status, due date, and estimate copied into a Daily plan task at generation, with an optional reference to the live Task. It excludes free-form description.
 
 ## Preferences
 
