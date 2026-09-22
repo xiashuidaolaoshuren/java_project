@@ -1,6 +1,6 @@
 # FocusFlow Roadmap — Enterprise-Grade Planning Iteration
 
-Last updated: 2026-09-10
+Last updated: 2026-09-22
 
 This tracks a multi-milestone iteration aimed at making FocusFlow's planning features closer to enterprise-grade: real scheduling on a clock, rest-aware planning, work that spans days, and the platform hardening needed to carry it. It exists so the milestones after the one currently in progress do not get lost between brainstorming sessions.
 
@@ -11,7 +11,7 @@ This tracks a multi-milestone iteration aimed at making FocusFlow's planning fea
 | Milestone | Status | Spec |
 |---|---|---|
 | 1.1.0 — Platform hardening | Implemented and merged. | [`2026-08-26-focusflow-1.1.0-platform-hardening-design.md`](specs/2026-08-26-focusflow-1.1.0-platform-hardening-design.md) |
-| 1.2.0 — The scheduled day | Spec reviewed twice; implementation plan pending. | [`2026-09-07-focusflow-1.2.0-scheduled-day-design.md`](specs/2026-09-07-focusflow-1.2.0-scheduled-day-design.md) |
+| 1.2.0 — The scheduled day | Implementation plan written. | [`2026-09-07-focusflow-1.2.0-scheduled-day-design.md`](specs/2026-09-07-focusflow-1.2.0-scheduled-day-design.md); [`2026-09-07-focusflow-1.2.0-scheduled-day-plan.md`](plans/2026-09-07-focusflow-1.2.0-scheduled-day-plan.md) |
 | 1.3.0 — Progress and carry-over | Not started. Scope outlined below. | — |
 | 1.4.0 — Dependencies and the multi-day horizon | Not started. Scope outlined below. | — |
 
