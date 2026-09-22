@@ -31,6 +31,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -43,6 +44,110 @@ class PostgresIntegrationTest {
 	@Autowired TaskRepository taskRepository;
 
 	@Autowired DailyPlanRepository dailyPlanRepository;
+
+	@Autowired JdbcTemplate jdbcTemplate;
+
+	@Test
+	void v2Migration_createsSchedulingFoundationTables() {
+		assertThat(tableExists("scheduling_preferences")).isTrue();
+		assertThat(tableExists("fixed_breaks")).isTrue();
+		assertThat(tableExists("commitments")).isTrue();
+	}
+
+	@Test
+	void schedulingPreferences_rejectsDuplicateOwner() {
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(UUID.randomUUID().toString().substring(0, 8))
+								.withAccountPrefix("prefs-owner")
+								.withPasswordHash(
+										"$2a$10$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+
+		insertSchedulingPreferences(owner.getId());
+		assertThatThrownBy(() -> insertSchedulingPreferences(owner.getId()))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	private void insertSchedulingPreferences(Long ownerId) {
+		jdbcTemplate.update(
+				"""
+				INSERT INTO scheduling_preferences (
+				    owner_id, work_day_start, work_day_end, cadence_enabled,
+				    target_focus_minutes, break_minutes, min_session_minutes, buffer_minutes
+				) VALUES (?, TIME '09:00', TIME '18:00', TRUE, 50, 10, 15, 0)
+				""",
+				ownerId);
+	}
+
+	@Test
+	void fixedBreaks_rejectsOrphanSchedulingPreferencesReference() {
+		assertThatThrownBy(
+						() ->
+								jdbcTemplate.update(
+										"""
+										INSERT INTO fixed_breaks (
+										    scheduling_preferences_id, label, start_time, end_time
+										) VALUES (999999, 'Lunch', TIME '12:00', TIME '13:00')
+										"""))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void commitments_rejectsOrphanOwnerReference() {
+		assertThatThrownBy(
+						() ->
+								jdbcTemplate.update(
+										"""
+										INSERT INTO commitments (
+										    owner_id, title, commitment_date, start_time, end_time
+										) VALUES (999999, 'Standup', DATE '2026-09-22', TIME '10:00', TIME '10:30')
+										"""))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void tasks_rejectNonPositiveEstimatedMinutes() {
+		User owner =
+				savedUser(
+						userRepository,
+						UserTestBuilder.user()
+								.withUnique(UUID.randomUUID().toString().substring(0, 8))
+								.withAccountPrefix("estimate-owner")
+								.withPasswordHash(
+										"$2a$10$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+
+		assertThatThrownBy(() -> insertTaskWithEstimatedMinutes(owner.getId(), 0))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> insertTaskWithEstimatedMinutes(owner.getId(), -5))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	private void insertTaskWithEstimatedMinutes(Long ownerId, int estimatedMinutes) {
+		jdbcTemplate.update(
+				"""
+				INSERT INTO tasks (
+				    owner_id, title, priority, status, estimated_minutes
+				) VALUES (?, 'Bad estimate', 'MEDIUM', 'OPEN', ?)
+				""",
+				ownerId,
+				estimatedMinutes);
+	}
+
+	private boolean tableExists(String tableName) {
+		Integer count =
+				jdbcTemplate.queryForObject(
+						"""
+						SELECT COUNT(*)
+						FROM information_schema.tables
+						WHERE table_schema = 'public'
+						  AND table_name = ?
+						""",
+						Integer.class,
+						tableName);
+		return count != null && count == 1;
+	}
 
 	@Test
 	void persistsUser_andFindsByEmail() {

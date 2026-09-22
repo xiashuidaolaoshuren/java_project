@@ -43,7 +43,9 @@ The Gradle wrapper is included, so a global Gradle installation is not required.
 
    `.\gradlew.bat bootRun` loads the repo-root `.env` into the Spring process automatically. You do not need `echo $env:OPENAI_*` to show values in your shell; restart `bootRun` after editing `.env`. Shell or CI environment variables still take precedence when set.
 
-4. In one terminal, run the backend. On a fresh PostgreSQL database, Flyway applies the canonical schema (`V1__baseline.sql`) automatically at startup. Do not set `SPRING_JPA_HIBERNATE_DDL_AUTO=update` — schema changes belong in Flyway migrations under `backend/src/main/resources/db/migration/`.
+4. In one terminal, run the backend. On a fresh PostgreSQL database, Flyway applies migrations automatically at startup (`V1__baseline.sql`, then `V2__scheduling_foundations.sql`). Do not set `SPRING_JPA_HIBERNATE_DDL_AUTO=update` — schema changes belong in Flyway migrations under `backend/src/main/resources/db/migration/`.
+
+   **V2 note:** `V2__scheduling_foundations.sql` adds scheduling preferences, fixed breaks, and commitments tables. It also converts any legacy `tasks.estimated_minutes` values of zero or below to `NULL`, then enforces that estimates must be null or positive. A later migration (`V3`) will reshape Daily plans; back up before upgrading production databases when that lands.
 
    **Existing pre-Flyway database (keep your data):**
 
